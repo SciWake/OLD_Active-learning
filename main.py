@@ -1,4 +1,6 @@
 import os
+
+import numpy as np
 import pandas as pd
 from src.data import ClearingPhrases
 from src.models import Classifier
@@ -31,22 +33,33 @@ class ModelTraining:
     def __update_init_dataset(self):
         pass
 
+    def __update_datasets(self, X: np.array, y: np.array):
+        pass
+
     @property
     def read_trained_data(self):
         return pd.read_csv(
             os.path.join(os.getcwd(), 'data', 'model', 'in_model.csv'))
 
+    # Upgrade to implementation from PyTorch
     def batch(self, batch_size: int = 1000):
-        pass
+        return self.train[:batch_size]
 
-    def train_model(self):
+    # There may be data preprocessing or it may be placed in a separate class
+    def update_model(self, X: np.array or None = None,
+                     y: np.array or None = None):
+        df = self.read_trained_data
         if classifier.start_model_status:
-            pass
+            self.__update_datasets()
         else:
-            classifier.fit()
+            classifier.fit(df['phrase'], df['subtopic'])
 
     def start(self):
-
+        if classifier.start_model_status:
+            self.update_model()
+        else:
+            while self.train.shape[0]:
+                X, y = self.batch
 
 
 if __name__ == '__main__':
