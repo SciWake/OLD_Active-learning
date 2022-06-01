@@ -14,11 +14,11 @@ class ModelTraining:
         self.classifier = classifier
         self.train = pd.read_csv(os.path.join(os.getcwd(), 'data', 'processed',
                                               train_file)).sort_values(
-            'frequency', ascending=False)
-        self.__init_dataset()
+            'frequency', ascending=False)[['phrase', 'subtopic']]
+        self.__init_df_in_model()
 
     @staticmethod
-    def __init_dataset(path: str = 'Parfjum_classifier.csv'):
+    def __init_df_in_model(path: str = 'Parfjum_classifier.csv'):
         df = pd.read_csv(os.path.join(os.getcwd(), 'data', 'input', path))
         df.loc[df['Тема'].isna() & df['Категория'].notna(), 'Тема'] = df.loc[
             df['Тема'].isna() & df['Категория'].notna(), 'Категория']
@@ -28,35 +28,38 @@ class ModelTraining:
         df['Подтема'].unique()
         df = pd.DataFrame({'phrase': df['Подтема'].unique(),
                            'subtopic': df['Подтема'].unique()})
-        df.to_csv(os.path.join(os.getcwd(), 'data', 'model', 'in_model.csv'))
-
-    def batch(self, batch_size: int = 1000):
-        return self.train[:batch_size]
+        df.to_csv(os.path.join(os.getcwd(), 'data', 'model', 'in_model.csv'),
+                  index=False)
 
     # Upgrade to implementation from PyTorch
+    def batch(self, batch_size: int) -> pd.DataFrame:
+        return self.train[:batch_size]
+
     @property
     def read_trained_data(self):
         return pd.read_csv(
             os.path.join(os.getcwd(), 'data', 'model', 'in_model.csv'))
 
-    def __update_datasets(self, x: np.array, y: np.array) -> pd.DataFrame:
-        df = self.read_trained_data
+    def __update_datasets(self, batch: pd.DataFrame) -> pd.DataFrame:
+        df = pd.concat([self.read_trained_data, batch])
+        df.to_csv(os.path.join(os.getcwd(), 'data', 'model', 'in_model.csv'))
+        self.train.drop(index=batch.index, inplace=True)
         return df
 
     # There may be data preprocessing or it may be placed in a separate class
-    def update_model(self, x: np.array or None = None,
-                     y: np.array or None = None):
-        df = self.__update_datasets(x, y)
+    def update_model(self, batch: pd.DataFrame):
+        df = self.__update_datasets(batch)
         classifier.fit(df['phrase'], df['subtopic'])
 
     def start(self):
-        if classifier.start_model_status:
-            while self.train.shape[0]:
-                x, y = self.batch
-        else:
+        if not classifier.start_model_status:
             df = self.read_trained_data
             classifier.fit(df['phrase'], df['subtopic'])
             classifier.start_model_status = 1
+
+        while self.train.shape[0]:
+            batch = self.batch(batch_size=1000)
+            self.update_model(batch)
 
 
 if __name__ == '__main__':
@@ -64,6 +67,7 @@ if __name__ == '__main__':
     clearing = ClearingPhrases(full.words_ordered.values)
     classifier = Classifier()
     system = ModelTraining(classifier, clearing)
+    system.start()
     # phrases = ClearingPhrases(full.words_ordered.values).get_best_texts
     # model.fit(subtopics=subtopics, n_neighbors=5, weights='distance', n_jobs=-1, metric='cosine')
     print(1)
