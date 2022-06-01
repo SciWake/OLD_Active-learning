@@ -46,16 +46,6 @@ class Classifier:
         return self
 
     @staticmethod  # Implement via sorting using argmax
-    def allmin(a: np.array, limit: int = 0.99) -> dict:
-        if len(a) == 0:
-            raise PredictError(f'No objects found')
-        all_ = {}
-        for i in range(len(a)):
-            if a[i] <= limit and a[i] != 0:
-                all_[a[i]] = i
-        return all_
-
-    @staticmethod  # Implement via sorting using argmax
     def allmax(a: np.array, limit: int = 0.98) -> dict or None:
         if len(a) == 0:
             return None
