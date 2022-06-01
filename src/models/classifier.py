@@ -51,7 +51,7 @@ class Classifier:
         return self
 
     @staticmethod  # Implement via sorting using argmax
-    def allmin(a: np.array, limit: int = 0.95) -> dict:
+    def allmin(a: np.array, limit: int = 0.98) -> dict:
         if len(a) == 0:
             raise PredictError(f'No objects found')
         all_ = {}
@@ -61,29 +61,40 @@ class Classifier:
         return all_
 
     @staticmethod  # Implement via sorting using argmax
-    def allmax(a: np.array, limit: int = 0.95) -> dict or None:
+    def allmax(a: np.array, limit: int = 0.98) -> dict or None:
         if len(a) == 0:
             return None
-        all_ = {}
+        all_limit = []
+        all_ = [0]
+        max_ = a[0]
         for i in range(len(a)):
             if a[i] >= limit:
-                all_[a[i]] = i
-        return all_
+                all_limit.append(i)
+            if a[i] > max_:
+                all_ = [i]
+                max_ = a[i]
+            elif a[i] == max_:
+                all_.append(i)
+        return all_limit, all_
 
-    def predict_proba_(self, x: np.array) -> list:
-        objects = []
-        for item in self.classifier.predict_proba(self.get_embeddings(x)):
-            item_max = self.allmax(item)
-            if item_max:
-                objects.append(item)
-            else:
-                objects.append(self.allmin(item))
-        return objects
+    def predict_proba_(self, x: np.array) -> tuple:
+        for_training, predict_model = [], []
+        for index, item in enumerate(
+                self.classifier.predict_proba(self.get_embeddings(x))):
+            limit_max, max_ = self.allmax(item)
+            if not limit_max:  # We save indexes where the model is not sure
+                for_training.append(index)
+            predict_model.append(
+                self.classifier.classes_[max_[0]])
+        return for_training, predict_model
 
     @property
     def classes_(self):
         return self.classifier.classes_
 
-    def metrics(self, y_true, y_pred, number_batch):
-        pass
-
+    @staticmethod
+    def metrics(y_true, y_pred) -> tuple:
+        a = accuracy_score(y_true, y_pred)
+        p = precision_score(y_true, y_pred, average='macro')
+        r = recall_score(y_true, y_pred, average='macro')
+        return a, p, r
