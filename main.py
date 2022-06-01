@@ -13,17 +13,15 @@ class ModelTraining:
         self.classifier = classifier
         self.train = pd.read_csv(self.path(train_file)).sort_values('frequency', ascending=False)[
             ['phrase', 'subtopic']]
-        self.__init_df('data/input/parfjum_classifier.csv')
+        self.__init_df('data/input/parfjum_classifier.csv', 'data/model/in_model.csv')
 
     @staticmethod
     def path(path):
         return Path(os.getcwd(), path)
 
-    def __init_df(self, path: str):
-        df = pd.read_csv(self.path(path))
-        df = df.fillna(method="ffill", axis=1).dropna(subset=['Подтема'])
-        df = pd.DataFrame({'phrase': df['Подтема'].unique(), 'subtopic': df['Подтема'].unique()})
-        df.to_csv(self.path('data/model/in_model.csv'), index=False)
+    def __init_df(self, path: str, save_path: str):
+        df = pd.read_csv(self.path(path)).fillna(method="pad", axis=1)['Подтема'].dropna()
+        pd.DataFrame({'phrase': df, 'subtopic': df}).to_csv(self.path(save_path), index=False)
 
     # Upgrade to implementation from PyTorch
     def batch(self, batch_size: int) -> pd.DataFrame:
