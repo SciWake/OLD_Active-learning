@@ -61,7 +61,7 @@ class ModelTraining:
             classifier.start_model_status = 1
 
         metrics = {'accuracy': [], 'precision': [], 'recall': [], 'batch': []}
-        while True:
+        while self.train.shape[0]:
             batch = self.batch(batch_size=1000)
             self.update_model(batch)
             for_training, predict_model = classifier.predict_proba_(
