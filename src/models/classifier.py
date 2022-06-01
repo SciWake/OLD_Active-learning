@@ -3,6 +3,7 @@ import pickle
 import fasttext
 import numpy as np
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import precision_score, accuracy_score, recall_score
 
 
 # Add a logger
@@ -41,7 +42,7 @@ class Classifier:
              text in texts if type(text) == str])
         return vectors
 
-    def fit(self, subtopics: np.array, phrases: np.array, **kwargs):
+    def fit(self, phrases: np.array, subtopics: np.array, **kwargs):
         self.classifier = KNeighborsClassifier(**kwargs)
         self.classifier.fit(self.get_embeddings(phrases), subtopics)
         with open(os.path.join(os.getcwd(), "models", self.classifier_path),
@@ -69,9 +70,9 @@ class Classifier:
                 all_[a[i]] = i
         return all_
 
-    def predict_proba(self, data: np.array) -> list:
+    def predict_proba_(self, x: np.array) -> list:
         objects = []
-        for item in self.classifier.predict_proba(data):
+        for item in self.classifier.predict_proba(self.get_embeddings(x)):
             item_max = self.allmax(item)
             if item_max:
                 objects.append(item)
@@ -82,3 +83,7 @@ class Classifier:
     @property
     def classes_(self):
         return self.classifier.classes_
+
+    def metrics(self, y_true, y_pred, number_batch):
+        pass
+
