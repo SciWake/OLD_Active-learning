@@ -1,9 +1,8 @@
 import os
-
-import numpy as np
 import pandas as pd
 from src.data import ClearingPhrases
 from src.models import Classifier
+from sklearn.metrics import classification_report
 
 
 class ModelTraining:
@@ -20,12 +19,7 @@ class ModelTraining:
     @staticmethod
     def __init_df_in_model(path: str = 'Parfjum_classifier.csv'):
         df = pd.read_csv(os.path.join(os.getcwd(), 'data', 'input', path))
-        df.loc[df['Тема'].isna() & df['Категория'].notna(), 'Тема'] = df.loc[
-            df['Тема'].isna() & df['Категория'].notna(), 'Категория']
-        df['Тема'].fillna(method='pad', inplace=True)
-        df.loc[df['Подтема'].isna(), 'Подтема'] = df.loc[
-            df['Подтема'].isna(), 'Тема']
-        df['Подтема'].unique()
+        df = df.fillna(method="ffill", axis=1).dropna(subset=['Подтема'])
         df = pd.DataFrame({'phrase': df['Подтема'].unique(),
                            'subtopic': df['Подтема'].unique()})
         df.to_csv(os.path.join(os.getcwd(), 'data', 'model', 'in_model.csv'),
@@ -50,28 +44,32 @@ class ModelTraining:
     def update_model(self, batch: pd.DataFrame):
         df = self.__update_datasets(batch)
         self.classifier.fit(df['phrase'], df['subtopic'], n_neighbors=5,
-                       weights='distance', n_jobs=-1, metric='cosine')
+                            weights='distance', n_jobs=-1, metric='cosine')
 
     def start(self):
         if not self.classifier.start_model_status:
             df = self.read_trained_data
             self.classifier.fit(df['phrase'].values, df['subtopic'].values,
-                           n_neighbors=15, weights='distance', n_jobs=-1,
-                           metric='cosine')
+                                n_neighbors=15, weights='distance', n_jobs=-1,
+                                metric='cosine')
             self.classifier.start_model_status = 1
 
         metrics = {'accuracy': [], 'precision': [], 'recall': [], 'batch': []}
         while self.train.shape[0]:
-            batch = self.batch(batch_size=100000)
+            batch = self.batch(batch_size=1000)
             for_training, predict_model = self.classifier.predict_proba_(
                 batch['phrase'].values)
             self.update_model(batch)
 
-            a, p, r = self.classifier.metrics(batch['subtopic'].values, predict_model)
+            a, p, r = self.classifier.metrics(batch['subtopic'].values,
+                                              predict_model)
             metrics['accuracy'].append(a)
             metrics['precision'].append(p)
             metrics['recall'].append(r)
-            metrics['batch'].append(0 if len(metrics.get('batch')) == 0 else metrics.get('batch')[-1] + batch.shape[0])
+            metrics['batch'].append(
+                0 if len(metrics.get('batch')) == 0 else metrics.get('batch')[
+                                                             -1] + batch.shape[
+                                                             0])
 
 
 from time import time
