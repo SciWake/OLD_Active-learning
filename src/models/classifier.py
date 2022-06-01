@@ -1,4 +1,5 @@
 import os
+import pickle
 import fasttext
 import numpy as np
 from sklearn.neighbors import KNeighborsClassifier
@@ -11,14 +12,24 @@ class PredictError(Exception):
 
 
 class Classifier:
-    _classifier = None
+    start_model_status = 0
 
-    def __init__(self, path_model: str = 'best.bin'):
+    def __init__(self, fasttext_model: str = 'best.bin',
+                 classifier_path: str = 'classifier.pkl'):
         """
-        :param path_model: Embedding model
+        :param fasttext_model: Embedding model
+        :param classifier_path: KNeighborsClassifier
         """
+        self.classifier_path = classifier_path
         self.model = fasttext.load_model(
-            os.path.join(os.getcwd(), "models", "adaptation", path_model))
+            os.path.join(os.getcwd(), "models", "adaptation", fasttext_model))
+        try:
+            with open(os.path.join(os.getcwd(), "models", classifier_path),
+                      'rb') as f:
+                self.classifier = pickle.load(f)
+                self.start_model_status = 1
+        except FileNotFoundError:
+            print('No launch model found')
 
     @staticmethod  # The processing should be placed in a separate class
     def _data_preprocessing(text: str) -> str:
@@ -30,16 +41,12 @@ class Classifier:
              text in texts if type(text) == str])
         return vectors
 
-    def fit(self, subtopics: np.array,
-            phrases: list or np.array or None = None,
-            **kwargs):
-        if phrases:
-            vectors_phrases = self.get_embeddings(phrases)
-        else:
-            vectors_phrases = self.get_embeddings(subtopics)
-
-        self._classifier = KNeighborsClassifier(**kwargs)
-        self._classifier.fit(vectors_phrases, subtopics)
+    def fit(self, subtopics: np.array, phrases: np.array, **kwargs):
+        self.classifier = KNeighborsClassifier(**kwargs)
+        self.classifier.fit(self.get_embeddings(phrases), subtopics)
+        with open(os.path.join(os.getcwd(), "models", self.classifier_path),
+                  'wb') as f:
+            pickle.dump(self.classifier, f)
         return self
 
     @staticmethod  # Implement via sorting using argmax
@@ -64,10 +71,14 @@ class Classifier:
 
     def predict_proba(self, data: np.array) -> list:
         objects = []
-        for item in self._classifier.predict_proba(data):
+        for item in self.classifier.predict_proba(data):
             item_max = self.allmax(item)
             if item_max:
                 objects.append(item)
             else:
                 objects.append(self.allmin(item))
         return objects
+
+    @property
+    def classes_(self):
+        return self.classifier.classes_
