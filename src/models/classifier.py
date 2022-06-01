@@ -4,6 +4,7 @@ import fasttext
 import numpy as np
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import precision_score, accuracy_score, recall_score
+from pathlib import Path
 
 
 # Add a logger
@@ -15,20 +16,23 @@ class PredictError(Exception):
 class Classifier:
     start_model_status = 0
 
-    def __init__(self, fasttext_model: str = 'best.bin', classifier_path: str = 'classifier.pkl'):
+    def __init__(self, fasttext_model: str, classifier_path: str):
         """
         :param fasttext_model: Embedding model
         :param classifier_path: KNeighborsClassifier
         """
         self.classifier_path = classifier_path
-        self.model = fasttext.load_model(
-            os.path.join(os.getcwd(), "models", "adaptation", fasttext_model))
+        self.model = fasttext.load_model(str(self.path(fasttext_model)))
         try:
-            with open(os.path.join(os.getcwd(), "models", classifier_path), 'rb') as f:
+            with open(self.path(classifier_path), 'rb') as f:
                 self.classifier = pickle.load(f)
                 self.start_model_status = 1
         except FileNotFoundError:
             print('No launch model found')
+
+    @staticmethod
+    def path(path):
+        return Path(os.getcwd(), path)
 
     @staticmethod  # The processing should be placed in a separate class
     def _data_preprocessing(text: str) -> str:
@@ -41,7 +45,7 @@ class Classifier:
     def fit(self, phrases: np.array, subtopics: np.array, **kwargs):
         self.classifier = KNeighborsClassifier(**kwargs)
         self.classifier.fit(self.get_embeddings(phrases), subtopics)
-        with open(os.path.join(os.getcwd(), "models", self.classifier_path), 'wb') as f:
+        with open(self.path(self.classifier_path), 'wb') as f:
             pickle.dump(self.classifier, f)
         return self
 

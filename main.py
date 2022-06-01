@@ -65,7 +65,7 @@ class ModelTraining:
 if __name__ == '__main__':
     # full = pd.read_csv('data/input/Parfjum_full_list_to_markup.csv')
     # clearing = ClearingPhrases(full.words_ordered.values)
-    classifier = Classifier()
+    classifier = Classifier('models/adaptation/best.bin', 'models/classifier.pkl')
     system = ModelTraining('data/processed/perfumery_train.csv', classifier)
     t1 = time()
     system.start()
