@@ -82,6 +82,6 @@ class Classifier:
     @staticmethod
     def metrics(y_true, y_pred) -> tuple:
         a = accuracy_score(y_true, y_pred)
-        p = precision_score(y_true, y_pred, average='macro')
-        r = recall_score(y_true, y_pred, average='macro')
+        p = precision_score(y_true, y_pred, average='macro', zero_division=1)
+        r = recall_score(y_true, y_pred, average='macro', zero_division=0)
         return a, p, r
