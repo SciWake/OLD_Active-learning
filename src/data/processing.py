@@ -2,7 +2,6 @@ import re
 import numpy as np
 import pymorphy2
 from functools import lru_cache
-from multiprocessing import Pool
 
 
 class LemmaPredictText:
