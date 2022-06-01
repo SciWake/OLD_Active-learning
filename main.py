@@ -49,23 +49,23 @@ class ModelTraining:
     # There may be data preprocessing or it may be placed in a separate class
     def update_model(self, batch: pd.DataFrame):
         df = self.__update_datasets(batch)
-        classifier.fit(df['phrase'], df['subtopic'], n_neighbors=5,
+        self.classifier.fit(df['phrase'], df['subtopic'], n_neighbors=5,
                        weights='distance', n_jobs=-1, metric='cosine')
 
     def start(self):
-        if not classifier.start_model_status:
+        if not self.classifier.start_model_status:
             df = self.read_trained_data
-            classifier.fit(df['phrase'].values, df['subtopic'].values,
+            self.classifier.fit(df['phrase'].values, df['subtopic'].values,
                            n_neighbors=15, weights='distance', n_jobs=-1,
                            metric='cosine')
-            classifier.start_model_status = 1
+            self.classifier.start_model_status = 1
 
         metrics = {'accuracy': [], 'precision': [], 'recall': [], 'batch': []}
         while self.train.shape[0]:
-            batch = self.batch(batch_size=1000)
-            self.update_model(batch)
-            for_training, predict_model = classifier.predict_proba_(
+            batch = self.batch(batch_size=100000)
+            for_training, predict_model = self.classifier.predict_proba_(
                 batch['phrase'].values)
+            self.update_model(batch)
 
             a, p, r = self.classifier.metrics(batch['subtopic'].values, predict_model)
             metrics['accuracy'].append(a)
