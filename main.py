@@ -30,36 +30,33 @@ class ModelTraining:
                            'subtopic': df['Подтема'].unique()})
         df.to_csv(os.path.join(os.getcwd(), 'data', 'model', 'in_model.csv'))
 
-    def __update_init_dataset(self):
-        pass
+    def batch(self, batch_size: int = 1000):
+        return self.train[:batch_size]
 
-    def __update_datasets(self, X: np.array, y: np.array):
-        pass
-
+    # Upgrade to implementation from PyTorch
     @property
     def read_trained_data(self):
         return pd.read_csv(
             os.path.join(os.getcwd(), 'data', 'model', 'in_model.csv'))
 
-    # Upgrade to implementation from PyTorch
-    def batch(self, batch_size: int = 1000):
-        return self.train[:batch_size]
+    def __update_datasets(self, x: np.array, y: np.array) -> pd.DataFrame:
+        df = self.read_trained_data
+        return df
 
     # There may be data preprocessing or it may be placed in a separate class
-    def update_model(self, X: np.array or None = None,
+    def update_model(self, x: np.array or None = None,
                      y: np.array or None = None):
-        df = self.read_trained_data
-        if classifier.start_model_status:
-            self.__update_datasets()
-        else:
-            classifier.fit(df['phrase'], df['subtopic'])
+        df = self.__update_datasets(x, y)
+        classifier.fit(df['phrase'], df['subtopic'])
 
     def start(self):
         if classifier.start_model_status:
-            self.update_model()
-        else:
             while self.train.shape[0]:
-                X, y = self.batch
+                x, y = self.batch
+        else:
+            df = self.read_trained_data
+            classifier.fit(df['phrase'], df['subtopic'])
+            classifier.start_model_status = 1
 
 
 if __name__ == '__main__':
