@@ -15,8 +15,7 @@ class PredictError(Exception):
 class Classifier:
     start_model_status = 0
 
-    def __init__(self, fasttext_model: str = 'best.bin',
-                 classifier_path: str = 'classifier.pkl'):
+    def __init__(self, fasttext_model: str = 'best.bin', classifier_path: str = 'classifier.pkl'):
         """
         :param fasttext_model: Embedding model
         :param classifier_path: KNeighborsClassifier
@@ -25,8 +24,7 @@ class Classifier:
         self.model = fasttext.load_model(
             os.path.join(os.getcwd(), "models", "adaptation", fasttext_model))
         try:
-            with open(os.path.join(os.getcwd(), "models", classifier_path),
-                      'rb') as f:
+            with open(os.path.join(os.getcwd(), "models", classifier_path), 'rb') as f:
                 self.classifier = pickle.load(f)
                 self.start_model_status = 1
         except FileNotFoundError:
@@ -37,21 +35,18 @@ class Classifier:
         return text.lower()
 
     def get_embeddings(self, texts: list or np.array) -> np.array:
-        vectors = np.array(
-            [self.model.get_sentence_vector(self._data_preprocessing(text)) for
-             text in texts if type(text) == str])
-        return vectors
+        return np.array([self.model.get_sentence_vector(self._data_preprocessing(text)) for
+                         text in texts if type(text) == str])
 
     def fit(self, phrases: np.array, subtopics: np.array, **kwargs):
         self.classifier = KNeighborsClassifier(**kwargs)
         self.classifier.fit(self.get_embeddings(phrases), subtopics)
-        with open(os.path.join(os.getcwd(), "models", self.classifier_path),
-                  'wb') as f:
+        with open(os.path.join(os.getcwd(), "models", self.classifier_path), 'wb') as f:
             pickle.dump(self.classifier, f)
         return self
 
     @staticmethod  # Implement via sorting using argmax
-    def allmin(a: np.array, limit: int = 0.98) -> dict:
+    def allmin(a: np.array, limit: int = 0.99) -> dict:
         if len(a) == 0:
             raise PredictError(f'No objects found')
         all_ = {}
@@ -79,13 +74,11 @@ class Classifier:
 
     def predict_proba_(self, x: np.array) -> tuple:
         for_training, predict_model = [], []
-        for index, item in enumerate(
-                self.classifier.predict_proba(self.get_embeddings(x))):
+        for index, item in enumerate(self.classifier.predict_proba(self.get_embeddings(x))):
             limit_max, max_ = self.allmax(item)
             if not limit_max:  # We save indexes where the model is not sure
                 for_training.append(index)
-            predict_model.append(
-                self.classifier.classes_[max_[0]])
+            predict_model.append(self.classifier.classes_[max_[0]])
         return for_training, predict_model
 
     @property
