@@ -36,20 +36,18 @@ class ModelTraining:
     # There may be data preprocessing or it may be placed in a separate class
     def update_model(self, batch: pd.DataFrame):
         df = self.__update_datasets(batch)
-        self.classifier.fit(df['phrase'], df['subtopic'], n_neighbors=5, weights='distance',
-                            n_jobs=-1, metric='cosine')
+        self.classifier.add(df['phrase'])
 
     def start(self):
         if not self.classifier.start_model_status:
             df = pd.read_csv(self.path('data/model/in_model.csv'))
-            self.classifier.fit(df['phrase'].values, df['subtopic'].values, n_neighbors=5,
-                                weights='distance', n_jobs=-1, metric='cosine')
+            self.classifier.add(df['phrase'])
             self.classifier.start_model_status = 1
 
         metrics = {'accuracy': [], 'precision': [], 'recall': [], 'batch': []}
         while self.train.shape[0]:
             batch = self.batch(batch_size=1000)
-            for_training, predict_model = self.classifier.predict_proba_(batch['phrase'].values)
+            for_training, predict_model = self.classifier.predict(batch['phrase'])
             self.update_model(batch)
 
             a, p, r = self.classifier.metrics(batch['subtopic'].values, predict_model)
