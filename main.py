@@ -20,7 +20,7 @@ class ModelTraining:
         return Path(os.getcwd(), path)
 
     def __init_df(self, path: str, save_path: str):
-        df = pd.read_csv(self.path(path)).fillna(method="pad", axis=1)['Подтема'].dropna()
+        df = pd.read_csv(self.path(path)).fillna(method="pad", axis=1)['Подтема'].dropna().values
         pd.DataFrame({'phrase': df, 'subtopic': df}).to_csv(self.path(save_path), index=False)
 
     # Upgrade to implementation from PyTorch
@@ -42,7 +42,7 @@ class ModelTraining:
     def start(self):
         if not self.classifier.start_model_status:
             df = pd.read_csv(self.path('data/model/in_model.csv'))
-            self.classifier.fit(df['phrase'].values, df['subtopic'].values, n_neighbors=15,
+            self.classifier.fit(df['phrase'].values, df['subtopic'].values, n_neighbors=5,
                                 weights='distance', n_jobs=-1, metric='cosine')
             self.classifier.start_model_status = 1
 
@@ -57,7 +57,8 @@ class ModelTraining:
             metrics['precision'].append(p)
             metrics['recall'].append(r)
             metrics['batch'].append(
-                0 if len(metrics.get('batch')) == 0 else metrics.get('batch')[-1] + batch.shape[0])
+                batch.shape[0] if len(metrics.get('batch')) == 0 else metrics.get('batch')[-1] +
+                                                                      batch.shape[0])
 
 
 if __name__ == '__main__':
