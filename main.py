@@ -13,43 +13,43 @@ class ModelTraining:
         self.classifier = classifier
         self.train = pd.read_csv(self.path(train_file)).sort_values('frequency', ascending=False)[
             ['phrase', 'subtopic']]
-        self.__init_df('data/input/parfjum_classifier.csv', 'data/model/in_model.csv')
+        self.init_df = self.__init_df('data/input/parfjum_classifier.csv', 'data/model/in_model.csv')
 
     @staticmethod
     def path(path):
         return Path(os.getcwd(), path)
 
-    def __init_df(self, path: str, save_path: str):
+    def __init_df(self, path: str, save_path: str) -> pd.DataFrame:
         df = pd.read_csv(self.path(path)).fillna(method="pad", axis=1)['Подтема'].dropna().values
-        pd.DataFrame({'phrase': df, 'subtopic': df}).to_csv(self.path(save_path), index=False)
+        df = pd.DataFrame({'phrase': df, 'subtopic': df})
+        df.to_csv(self.path(save_path), index=False)
+        return df
 
     # Upgrade to implementation from PyTorch
     def batch(self, batch_size: int) -> pd.DataFrame:
-        return self.train[:batch_size]
-
-    def __update_datasets(self, batch: pd.DataFrame) -> pd.DataFrame:
-        df = pd.concat([pd.read_csv(self.path('data/model/in_model.csv')), batch])
-        df.to_csv(self.path('data/model/in_model.csv'))
-        self.train.drop(index=batch.index, inplace=True)
-        return df
+        batch = self.train[:batch_size]
+        self.train = self.train[batch_size:]
+        return batch
 
     # There may be data preprocessing or it may be placed in a separate class
     def update_model(self, batch: pd.DataFrame):
-        df = self.__update_datasets(batch)
-        self.classifier.add(df['phrase'])
+        self.init_df = pd.concat([self.init_df, batch])
+        self.init_df.to_csv(self.path('data/model/in_model.csv'))
+        self.classifier.add(batch['phrase'])
 
     def start(self):
         if not self.classifier.start_model_status:
-            df = pd.read_csv(self.path('data/model/in_model.csv'))
-            self.classifier.add(df['phrase'])
+            self.classifier.add(self.init_df['phrase'])
             self.classifier.start_model_status = 1
 
         metrics = {'accuracy': [], 'precision': [], 'recall': [], 'batch': []}
         while self.train.shape[0]:
             batch = self.batch(batch_size=1000)
-            for_training, predict_model = self.classifier.predict(batch['phrase'])
-            self.update_model(batch)
-
+            for_training, predict_model = self.classifier.predict(batch['phrase'], 0.95)
+            # for_training - индексты объектов где x < limit. Из батча выбираем то, что отправим на разметку
+            self.update_model(batch.loc[for_training])  #
+            # Про
+            for_training, predict_model = self.classifier.predict(batch['phrase'], 0.95)
             a, p, r = self.classifier.metrics(batch['subtopic'].values, predict_model)
             metrics['accuracy'].append(a)
             metrics['precision'].append(p)
