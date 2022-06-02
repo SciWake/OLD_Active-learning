@@ -58,14 +58,14 @@ class Classifier:
                 all_.append(i)
         return all_limit, all_
 
-    def predict(self, x: np.array) -> tuple:
+    def predict(self, x: np.array, limit: float) -> tuple:
         for_training, predict_model = [], []
         dis, ind = self.index.search(self.embeddings(x), k=5)
         for i in range(x.shape[0]):
-            limit_max, max_ = self.allmax(dis[i], 0.95)
-            if not limit_max:  # We save indexes where the model is not sure
+            limit_max, max_ = self.allmax(dis[i], 0.2)
+            if not any(dis[i] <= 1-limit):  # We save indexes where the model is not sure
                 for_training.append(i)
-            predict_model.append(ind[i][max_[0]])
+            predict_model.append(ind[i][0])
         return np.array(for_training), np.array(predict_model)
 
     @staticmethod
