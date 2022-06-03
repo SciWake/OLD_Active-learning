@@ -1,8 +1,9 @@
 import os
 import pickle
+import faiss
 import fasttext
 import numpy as np
-from sklearn.neighbors import KNeighborsClassifier
+from sklearn.preprocessing import normalize
 from sklearn.metrics import precision_score, accuracy_score, recall_score
 from pathlib import Path
 
@@ -16,16 +17,12 @@ class PredictError(Exception):
 class Classifier:
     start_model_status = 0
 
-    def __init__(self, fasttext_model: str, classifier_path: str):
-        """
-        :param fasttext_model: Embedding model
-        :param classifier_path: KNeighborsClassifier
-        """
-        self.classifier_path = classifier_path
+    def __init__(self, fasttext_model: str, faiss_path: str):
+        self.faiss_path = faiss_path
         self.model = fasttext.load_model(str(self.path(fasttext_model)))
         try:
-            with open(self.path(classifier_path), 'rb') as f:
-                self.classifier = pickle.load(f)
+            with open(self.path(faiss_path), 'rb') as f:
+                self.index = pickle.load(f)
                 self.start_model_status = 1
         except FileNotFoundError:
             print('No launch model found')
@@ -34,50 +31,43 @@ class Classifier:
     def path(path):
         return Path(os.getcwd(), path)
 
-    @staticmethod  # The processing should be placed in a separate class
-    def _data_preprocessing(text: str) -> str:
-        return text.lower()
+    def embeddings(self, texts: list or np.array) -> np.array:
+        return normalize(np.array([self.model.get_sentence_vector(text.lower()) for text in texts]))
 
-    def get_embeddings(self, texts: list or np.array) -> np.array:
-        return np.array([self.model.get_sentence_vector(self._data_preprocessing(text)) for
-                         text in texts if type(text) == str])
-
-    def fit(self, phrases: np.array, subtopics: np.array, **kwargs):
-        self.classifier = KNeighborsClassifier(**kwargs)
-        self.classifier.fit(self.get_embeddings(phrases), subtopics)
-        with open(self.path(self.classifier_path), 'wb') as f:
-            pickle.dump(self.classifier, f)
+    def add(self, phrases: np.array):
+        self.index = faiss.IndexFlat(300)
+        self.index.add(self.embeddings(phrases))
+        with open(self.path(self.faiss_path), 'wb') as f:
+            pickle.dump(self.index, f)
         return self
 
     @staticmethod  # Implement via sorting using argmax
-    def allmax(a: np.array, limit: int = 0.98) -> dict or None:
+    def allmax(a: np.array, limit: float) -> dict or None:
         if len(a) == 0:
             return None
         all_limit = []
         all_ = [0]
         max_ = a[0]
-        for i in range(len(a)):
-            if a[i] >= limit:
+        for i in range(a.shape[0]):
+            if a[i] <= 1 - limit:
                 all_limit.append(i)
-            if a[i] > max_:
+            if a[i] < max_:
                 all_ = [i]
                 max_ = a[i]
-            elif a[i] == max_:
+            elif a[i] == max_ and i:
                 all_.append(i)
         return all_limit, all_
 
-    def predict_proba_(self, x: np.array) -> tuple:
+    def predict(self, x: np.array, limit: float) -> tuple:
+        # for_training - то, что отправим на разметку
         for_training, predict_model = [], []
-        for index, item in enumerate(self.classifier.predict_proba(self.get_embeddings(x))):
-            limit_max, max_ = self.allmax(item)
-            if not limit_max:  # We save indexes where the model is not sure
-                for_training.append(index)
-            predict_model.append(self.classifier.classes_[max_[0]])
-        return for_training, predict_model
-
-    @property
-    def classes_(self):
-        return self.classifier.classes_
+        dis, ind = self.index.search(self.embeddings(x), k=5)
+        for i in range(x.shape[0]):
+            limit_max, max_ = self.allmax(dis[i], limit)
+            if not any(dis[i] <= 1-limit):  # We save indexes where the model is not sure
+                for_training.append(i)
+            predict_model.append(ind[i][0])
+        return np.array(for_training), np.array(predict_model)
 
     @staticmethod
     def metrics(y_true, y_pred) -> tuple:

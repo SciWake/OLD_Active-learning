@@ -13,52 +13,55 @@ class ModelTraining:
         self.classifier = classifier
         self.train = pd.read_csv(self.path(train_file)).sort_values('frequency', ascending=False)[
             ['phrase', 'subtopic']]
-        self.__init_df('data/input/parfjum_classifier.csv', 'data/model/in_model.csv')
+        self.init_df = self.__init_df('data/input/parfjum_classifier.csv',
+                                      'data/model/in_model.csv')
 
     @staticmethod
     def path(path):
         return Path(os.getcwd(), path)
 
-    def __init_df(self, path: str, save_path: str):
+    def __init_df(self, path: str, save_path: str) -> pd.DataFrame:
         df = pd.read_csv(self.path(path)).fillna(method="pad", axis=1)['Подтема'].dropna().values
-        pd.DataFrame({'phrase': df, 'subtopic': df}).to_csv(self.path(save_path), index=False)
+        df = pd.DataFrame({'phrase': df, 'subtopic': df})
+        df.to_csv(self.path(save_path), index=False)
+        return df
 
     # Upgrade to implementation from PyTorch
     def batch(self, batch_size: int) -> pd.DataFrame:
-        return self.train[:batch_size]
-
-    def __update_datasets(self, batch: pd.DataFrame) -> pd.DataFrame:
-        df = pd.concat([pd.read_csv(self.path('data/model/in_model.csv')), batch])
-        df.to_csv(self.path('data/model/in_model.csv'))
-        self.train.drop(index=batch.index, inplace=True)
-        return df
+        batch = self.train[:batch_size]
+        self.train = self.train[batch_size:]
+        return batch.reset_index(drop=True)
 
     # There may be data preprocessing or it may be placed in a separate class
-    def update_model(self, batch: pd.DataFrame):
-        df = self.__update_datasets(batch)
-        self.classifier.fit(df['phrase'], df['subtopic'], n_neighbors=5, weights='distance',
-                            n_jobs=-1, metric='cosine')
+    def __update_init_df(self, batch: pd.DataFrame):
+        self.init_df = pd.concat([self.init_df, batch], ignore_index=True)
+        self.init_df.to_csv(self.path('data/model/in_model.csv'))
 
     def start(self):
         if not self.classifier.start_model_status:
-            df = pd.read_csv(self.path('data/model/in_model.csv'))
-            self.classifier.fit(df['phrase'].values, df['subtopic'].values, n_neighbors=5,
-                                weights='distance', n_jobs=-1, metric='cosine')
+            self.classifier.add(self.init_df['phrase'])
             self.classifier.start_model_status = 1
 
-        metrics = {'accuracy': [], 'precision': [], 'recall': [], 'batch': []}
+        metrics = {'accuracy': [], 'precision': [], 'recall': [], 'batch': [], 'for_training': []}
         while self.train.shape[0]:
             batch = self.batch(batch_size=1000)
-            for_training, predict_model = self.classifier.predict_proba_(batch['phrase'].values)
-            self.update_model(batch)
-
-            a, p, r = self.classifier.metrics(batch['subtopic'].values, predict_model)
+            for_training, predict_model = self.classifier.predict(batch['phrase'], 0.95)
+            # for_training - индексты объектов где x < limit. Из батча выбираем то, что отправим на разметку
+            self.__update_init_df(batch.loc[for_training])  #
+            # Оцениваем качество модели на всех доступных данных
+            _, predict_model = self.classifier.predict(self.init_df['phrase'], 0.95)
+            a, p, r = self.classifier.metrics(self.init_df['subtopic'],
+                                              self.init_df['subtopic'].values[predict_model])
             metrics['accuracy'].append(a)
             metrics['precision'].append(p)
             metrics['recall'].append(r)
+            metrics['for_training'].append(for_training.shape)
             metrics['batch'].append(
                 batch.shape[0] if len(metrics.get('batch')) == 0 else metrics.get('batch')[-1] +
                                                                       batch.shape[0])
+            # Добавляем новые индексы в модель
+            self.classifier.add(self.init_df['phrase'])
+        pd.DataFrame(metrics).to_csv('metrics.csv')
 
 
 if __name__ == '__main__':
