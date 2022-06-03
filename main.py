@@ -47,7 +47,7 @@ class ModelTraining:
         all_metrics, marked_metrics, marked_data = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
         while self.train.shape[0]:
             # Размечаем набор данных моделью
-            predict_limit, _ = self.classifier.predict(self.train['phrase'], limit)
+            predict_limit, all_predict = self.classifier.predict(self.train['phrase'], limit)
             marked_data = pd.concat([marked_data, self.train.loc[predict_limit]], ignore_index=True)
             self.__update_init_df(self.train.loc[predict_limit])
 
@@ -56,13 +56,13 @@ class ModelTraining:
             self.__update_init_df(batch)
 
             # Оцениваем качество модели на всех доступных данных
-            _, all_predict = self.classifier.predict(self.init_df['phrase'], limit)
+            predict_limit, all_predict = self.classifier.predict(self.init_df['phrase'], limit)
             metrics = self.classifier.metrics(self.init_df['subtopic'], self.init_df['subtopic'][all_predict])
             metrics['marked_model'] = predict_limit.shape[0]
             all_metrics = pd.concat([all_metrics, metrics])
 
             # Оцениваем качество модели на предсказнных ей
-            _, all_predict = self.classifier.predict(marked_data['phrase'], limit)
+            predict_limit, all_predict = self.classifier.predict(marked_data['phrase'], limit)
             metrics = self.classifier.metrics(marked_data['subtopic'], marked_data['subtopic'][all_predict])
             metrics['marked_model'] = predict_limit.shape[0]
             marked_metrics = pd.concat([marked_metrics, metrics])
