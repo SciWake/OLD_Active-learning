@@ -44,10 +44,11 @@ class ModelTraining:
         if not self.classifier.start_model_status:
             self.classifier.add(self.init_df['phrase'])
 
-        all_metrics, marked_metrics = pd.DataFrame(), pd.DataFrame()
+        all_metrics, marked_metrics, marked_data = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
         while self.train.shape[0]:
             # Размечаем набор данных моделью
             predict_limit, _ = self.classifier.predict(self.train['phrase'], limit)
+            marked_data = pd.concat([marked_data, self.train.loc[predict_limit]], ignore_index=True)
             self.__update_init_df(self.train.loc[predict_limit])
 
             # Получаем разметку и отправляем в размеченный набор данных
@@ -60,11 +61,18 @@ class ModelTraining:
             metrics['marked_model'] = predict_limit.shape[0]
             all_metrics = pd.concat([all_metrics, metrics])
 
+            # Оцениваем качество модели на предсказнных ей
+            _, all_predict = self.classifier.predict(marked_data['phrase'], limit)
+            metrics = self.classifier.metrics(marked_data['subtopic'], marked_data['subtopic'][all_predict])
+            metrics['marked_model'] = predict_limit.shape[0]
+            marked_metrics = pd.concat([marked_metrics, metrics])
+
             # Добавляем новые индексы в модель
             self.classifier.add(self.init_df['phrase'])
 
         all_metrics.to_csv(f'{limit}_{batch_size}_all.csv', index=False)
         marked_metrics.to_csv(f'{limit}_{batch_size}_marked.csv', index=False)
+        marked_data.to_csv(f'{limit}_{batch_size}_marked.csv')
 
 
 if __name__ == '__main__':
@@ -73,6 +81,6 @@ if __name__ == '__main__':
     classifier = Classifier('models/adaptation/best.bin', 'models/classifier.pkl')
     system = ModelTraining('data/processed/perfumery_train.csv', classifier)
     t1 = time()
-    system.start()
+    system.start(limit=0.90, batch_size=500)
     print(time() - t1)
     # phrases = ClearingPhrases(full.words_ordered.values).get_best_texts
