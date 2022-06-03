@@ -40,22 +40,22 @@ class ModelTraining:
         self.init_df.to_csv(self.path('data/model/in_model.csv'))
         self.train = self.train.drop(index=markup.index).reset_index(drop=True)
 
-    def start(self):
+    def start(self, limit: float, batch_size: int):
         if not self.classifier.start_model_status:
             self.classifier.add(self.init_df['phrase'])
 
         all_metrics, marked_metrics = pd.DataFrame(), pd.DataFrame()
         while self.train.shape[0]:
             # Размечаем набор данных моделью
-            predict_limit, _ = self.classifier.predict(self.train['phrase'], 0.95)
+            predict_limit, _ = self.classifier.predict(self.train['phrase'], limit)
             self.__update_init_df(self.train.loc[predict_limit])
 
             # Получаем разметку и отправляем в размеченный набор данных
-            batch = self.batch(batch_size=1000)
+            batch = self.batch(batch_size=batch_size)
             self.__update_init_df(batch)
 
             # Оцениваем качество модели на всех доступных данных
-            _, all_predict = self.classifier.predict(self.init_df['phrase'], 0.95)
+            _, all_predict = self.classifier.predict(self.init_df['phrase'], limit)
             metrics = self.classifier.metrics(self.init_df['subtopic'], self.init_df['subtopic'][all_predict])
             metrics['marked_model'] = predict_limit.shape[0]
             all_metrics = pd.concat([all_metrics, metrics])
