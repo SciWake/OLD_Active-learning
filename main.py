@@ -63,8 +63,8 @@ class ModelTraining:
             # Добавляем новые индексы в модель
             self.classifier.add(self.init_df['phrase'])
 
-        all_metrics.to_csv('metrics.csv', index=False)
-        marked_metrics.to_csv('metrics.csv', index=False)
+        all_metrics.to_csv(f'{limit}_{batch_size}_all.csv', index=False)
+        marked_metrics.to_csv(f'{limit}_{batch_size}_marked.csv', index=False)
 
 
 if __name__ == '__main__':
