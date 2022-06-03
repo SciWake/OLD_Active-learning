@@ -63,16 +63,16 @@ class ModelTraining:
 
             # Оцениваем качество модели на предсказнных ей
             predict_limit, all_predict = self.classifier.predict(marked_data['phrase'], limit)
-            metrics = self.classifier.metrics(marked_data['subtopic'], marked_data['subtopic'][all_predict])
+            metrics = self.classifier.metrics(marked_data['subtopic'], self.init_df['subtopic'][all_predict])
             metrics['marked_model'] = predict_limit.shape[0]
             marked_metrics = pd.concat([marked_metrics, metrics])
 
             # Добавляем новые индексы в модель
             self.classifier.add(self.init_df['phrase'])
 
-        all_metrics.to_csv(f'{limit}_{batch_size}_all.csv', index=False)
-        marked_metrics.to_csv(f'{limit}_{batch_size}_marked.csv', index=False)
-        marked_data.to_csv(f'{limit}_{batch_size}_marked.csv')
+        all_metrics.to_csv(self.path(f'data/model/{limit}_{batch_size}_all_metrics.csv'), index=False)
+        marked_metrics.to_csv(self.path(f'data/model/{limit}_{batch_size}_marked_metrics.csv'), index=False)
+        marked_data.to_csv(self.path(f'data/model/{limit}_{batch_size}_marked.csv'), index=False)
 
 
 if __name__ == '__main__':
