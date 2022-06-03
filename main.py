@@ -33,9 +33,14 @@ class ModelTraining:
         return batch.reset_index(drop=True)
 
     # There may be data preprocessing or it may be placed in a separate class
-    def __update_init_df(self, batch: pd.DataFrame):
-        self.init_df = pd.concat([self.init_df, batch], ignore_index=True)
+    def __update_init_df(self, markup: pd.DataFrame):
+        '''
+        Созраняем размеченные данные в таблицу. Обновляем тренировчный набор.
+        :param markup: Разметка полученная разметчиками или моделью.
+        '''
+        self.init_df = pd.concat([self.init_df, markup], ignore_index=True)
         self.init_df.to_csv(self.path('data/model/in_model.csv'))
+        self.train = self.train.drop(index=markup.index).reset_index(drop=True)  # Удаление данных размеченных моделью
 
     def start(self):
         if not self.classifier.start_model_status:
@@ -44,10 +49,10 @@ class ModelTraining:
 
         metrics = {'accuracy': [], 'precision': [], 'recall': [], 'batch': [], 'for_training': []}
         while self.train.shape[0]:
+            # Размечаем набор данных моделью
+            predict_limit, all_predict = self.classifier.predict(self.train['phrase'], 0.95)
+            self.__update_init_df(self.train.loc[predict_limit])  #
             batch = self.batch(batch_size=1000)
-            for_training, predict_model = self.classifier.predict(batch['phrase'], 0.95)
-            # for_training - индексты объектов где x < limit. Из батча выбираем то, что отправим на разметку
-            self.__update_init_df(batch.loc[for_training])  #
             # Оцениваем качество модели на всех доступных данных
             _, predict_model = self.classifier.predict(self.init_df['phrase'], 0.95)
             a, p, r = self.classifier.metrics(self.init_df['subtopic'],
@@ -55,7 +60,7 @@ class ModelTraining:
             metrics['accuracy'].append(a)
             metrics['precision'].append(p)
             metrics['recall'].append(r)
-            metrics['for_training'].append(for_training.shape)
+            metrics['predict_limit'].append(predict_limit.shape)
             metrics['batch'].append(
                 batch.shape[0] if len(metrics.get('batch')) == 0 else metrics.get('batch')[-1] +
                                                                       batch.shape[0])
