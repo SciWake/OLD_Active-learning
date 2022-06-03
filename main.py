@@ -58,13 +58,13 @@ class ModelTraining:
             # Оцениваем качество модели на всех доступных данных
             predict_limit, all_predict = self.classifier.predict(self.init_df['phrase'], limit)
             metrics = self.classifier.metrics(self.init_df['subtopic'], self.init_df['subtopic'][all_predict])
-            metrics['marked_model'] = predict_limit.shape[0]
+            metrics['marked_model_size'] = predict_limit.shape[0]
             all_metrics = pd.concat([all_metrics, metrics])
 
             # Оцениваем качество модели на предсказнных ей
             predict_limit, all_predict = self.classifier.predict(marked_data['phrase'], limit)
             metrics = self.classifier.metrics(marked_data['subtopic'], self.init_df['subtopic'][all_predict])
-            metrics['marked_model'] = predict_limit.shape[0]
+            metrics['marked_model_size'] = predict_limit.shape[0]
             marked_metrics = pd.concat([marked_metrics, metrics])
 
             # Добавляем новые индексы в модель

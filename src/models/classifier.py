@@ -3,8 +3,9 @@ import pickle
 import faiss
 import fasttext
 import numpy as np
+import pandas as pd
 from sklearn.preprocessing import normalize
-from sklearn.metrics import precision_score, accuracy_score, recall_score
+from sklearn.metrics import precision_score, recall_score, f1_score
 from pathlib import Path
 
 
@@ -59,19 +60,22 @@ class Classifier:
         return all_limit, all_
 
     def predict(self, x: np.array, limit: float) -> tuple:
-        # for_training - то, что отправим на разметку
-        for_training, predict_model = [], []
+        # predict_limit - то, что предсказал модель
+        predict_limit, all_predict = [], []
         dis, ind = self.index.search(self.embeddings(x), k=5)
         for i in range(x.shape[0]):
             limit_max, max_ = self.allmax(dis[i], limit)
-            if not any(dis[i] <= 1-limit):  # We save indexes where the model is not sure
-                for_training.append(i)
-            predict_model.append(ind[i][0])
-        return np.array(for_training), np.array(predict_model)
+            if any(dis[i] <= 1 - limit):  # We save indexes where the model is not sure
+                predict_limit.append(i)
+            all_predict.append(ind[i][0])
+        return np.array(predict_limit), np.array(all_predict)
 
     @staticmethod
-    def metrics(y_true, y_pred) -> tuple:
-        a = accuracy_score(y_true, y_pred)
-        p = precision_score(y_true, y_pred, average='macro', zero_division=1)
-        r = recall_score(y_true, y_pred, average='macro', zero_division=0)
-        return a, p, r
+    def metrics(y_true: np.array, y_pred: np.array) -> pd.DataFrame:
+        return pd.DataFrame({
+            'f1': [f1_score(y_true, y_pred, average='macro')],
+            'precision': [precision_score(y_true, y_pred, average='macro', zero_division=1)],
+            'recall': [recall_score(y_true, y_pred, average='macro', zero_division=0)],
+            'marked_model_size': [0],
+            'validation_size': [y_true.shape[0]]
+        })
