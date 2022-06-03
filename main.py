@@ -38,34 +38,33 @@ class ModelTraining:
         '''
         self.init_df = pd.concat([self.init_df, markup], ignore_index=True)
         self.init_df.to_csv(self.path('data/model/in_model.csv'))
-        self.train = self.train.drop(index=markup.index).reset_index(drop=True)  # Удаление данных размеченных моделью
+        self.train = self.train.drop(index=markup.index).reset_index(drop=True)
 
     def start(self):
         if not self.classifier.start_model_status:
             self.classifier.add(self.init_df['phrase'])
-            self.classifier.start_model_status = 1
 
-        metrics = {'accuracy': [], 'precision': [], 'recall': [], 'batch': [], 'for_training': []}
+        all_metrics, marked_metrics = pd.DataFrame(), pd.DataFrame()
         while self.train.shape[0]:
             # Размечаем набор данных моделью
-            predict_limit, all_predict = self.classifier.predict(self.train['phrase'], 0.95)
-            self.__update_init_df(self.train.loc[predict_limit])  #
+            predict_limit, _ = self.classifier.predict(self.train['phrase'], 0.95)
+            self.__update_init_df(self.train.loc[predict_limit])
+
             # Получаем разметку и отправляем в размеченный набор данных
             batch = self.batch(batch_size=1000)
             self.__update_init_df(batch)
+
             # Оцениваем качество модели на всех доступных данных
-            _, predict_model = self.classifier.predict(self.init_df['phrase'], 0.95)
-            a, p, r = self.classifier.metrics(self.init_df['subtopic'], self.init_df['subtopic'].values[predict_model])
-            metrics['accuracy'].append(a)
-            metrics['precision'].append(p)
-            metrics['recall'].append(r)
-            metrics['predict_limit'].append(predict_limit.shape)
-            metrics['batch'].append(
-                batch.shape[0] if len(metrics.get('batch')) == 0 else metrics.get('batch')[-1] +
-                                                                      batch.shape[0])
+            _, all_predict = self.classifier.predict(self.init_df['phrase'], 0.95)
+            metrics = self.classifier.metrics(self.init_df['subtopic'], self.init_df['subtopic'][all_predict])
+            metrics['marked_model'] = predict_limit.shape[0]
+            all_metrics = pd.concat([all_metrics, metrics])
+
             # Добавляем новые индексы в модель
             self.classifier.add(self.init_df['phrase'])
-        pd.DataFrame(metrics).to_csv('metrics.csv')
+
+        all_metrics.to_csv('metrics.csv', index=False)
+        marked_metrics.to_csv('metrics.csv', index=False)
 
 
 if __name__ == '__main__':
