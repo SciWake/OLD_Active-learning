@@ -28,9 +28,7 @@ class ModelTraining:
 
     # Upgrade to implementation from PyTorch
     def batch(self, batch_size: int) -> pd.DataFrame:
-        batch = self.train[:batch_size]
-        self.train = self.train[batch_size:]
-        return batch.reset_index(drop=True)
+        return self.train[:batch_size]
 
     # There may be data preprocessing or it may be placed in a separate class
     def __update_init_df(self, markup: pd.DataFrame):
@@ -52,11 +50,12 @@ class ModelTraining:
             # Размечаем набор данных моделью
             predict_limit, all_predict = self.classifier.predict(self.train['phrase'], 0.95)
             self.__update_init_df(self.train.loc[predict_limit])  #
+            # Получаем разметку и отправляем в размеченный набор данных
             batch = self.batch(batch_size=1000)
+            self.__update_init_df(batch)
             # Оцениваем качество модели на всех доступных данных
             _, predict_model = self.classifier.predict(self.init_df['phrase'], 0.95)
-            a, p, r = self.classifier.metrics(self.init_df['subtopic'],
-                                              self.init_df['subtopic'].values[predict_model])
+            a, p, r = self.classifier.metrics(self.init_df['subtopic'], self.init_df['subtopic'].values[predict_model])
             metrics['accuracy'].append(a)
             metrics['precision'].append(p)
             metrics['recall'].append(r)
