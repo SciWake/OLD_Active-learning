@@ -42,24 +42,25 @@ class ModelTraining:
             self.classifier.add(self.init_df['phrase'])
             self.classifier.start_model_status = 1
 
-        metrics = {'accuracy': [], 'precision': [], 'recall': [], 'batch': []}
+        metrics = {'accuracy': [], 'precision': [], 'recall': [], 'batch': [], 'for_training': []}
         while self.train.shape[0]:
             batch = self.batch(batch_size=1000)
-            for_training, predict_model = self.classifier.predict(batch['phrase'], 0.80)
+            for_training, predict_model = self.classifier.predict(batch['phrase'], 0.95)
             # for_training - индексты объектов где x < limit. Из батча выбираем то, что отправим на разметку
             self.__update_init_df(batch.loc[for_training])  #
             # Оцениваем качество модели на всех доступных данных
-            _, predict_model = self.classifier.predict(self.init_df['phrase'], 0.80)
+            _, predict_model = self.classifier.predict(self.init_df['phrase'], 0.95)
             a, p, r = self.classifier.metrics(self.init_df['subtopic'],
                                               self.init_df['subtopic'].values[predict_model])
             metrics['accuracy'].append(a)
             metrics['precision'].append(p)
             metrics['recall'].append(r)
+            metrics['for_training'].append(for_training.shape)
             metrics['batch'].append(
                 batch.shape[0] if len(metrics.get('batch')) == 0 else metrics.get('batch')[-1] +
                                                                       batch.shape[0])
             # Добавляем новые индексы в модель
-            self.classifier.add(self.init_df['subtopic'])
+            self.classifier.add(self.init_df['phrase'])
         pd.DataFrame(metrics).to_csv('metrics.csv')
 
 
