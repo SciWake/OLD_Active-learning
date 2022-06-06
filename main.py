@@ -43,32 +43,35 @@ class ModelTraining:
         if not self.classifier.start_model_status:
             self.classifier.add(self.init_df['phrase'].values, self.init_df['subtopic'].values)
 
+        people, model = 0, 0
         all_metrics, marked_metrics, marked_data = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
         while self.train.shape[0]:
             # Размечаем набор данных моделью
             index_limit, all_predict = self.classifier.predict(self.train['phrase'], limit)
             predict_df = pd.DataFrame({'phrase': self.train.loc[index_limit].phrase,
-                                       'subtopic': all_predict[index_limit],
+                                       'subtopic': all_predict[index_limit] if index_limit.shape[0] else [],
                                        'subtopic_true': self.train.loc[index_limit]['subtopic_true']})
             marked_data = pd.concat([marked_data, predict_df], ignore_index=True)
             self.train = self.train.drop(index=index_limit).reset_index(drop=True)
-            self.__update_init_df(marked_data)
+            model += index_limit.shape[0]
+            self.__update_init_df(predict_df)
 
             # Получаем разметку и отправляем в размеченный набор данных
             batch = self.batch(batch_size=batch_size)
             self.train = self.train.drop(index=batch.index).reset_index(drop=True)
+            people += batch.shape[0]
             self.__update_init_df(batch)
 
             # Оцениваем качество модели на всех доступных данных
             index_limit, all_predict = self.classifier.predict(self.init_df['phrase'], limit)
             metrics = self.classifier.metrics(self.init_df['subtopic_true'], all_predict)
-            metrics['marked_model_size'] = index_limit.shape[0]
+            metrics[['model_from_val', 'model_from_all', 'people_from_val']] = index_limit.shape[0], model, people
             all_metrics = pd.concat([all_metrics, metrics])
 
             # Оцениваем качество модели на предсказнных ей
             index_limit, all_predict = self.classifier.predict(marked_data['phrase'], limit)
             metrics = self.classifier.metrics(marked_data['subtopic_true'], all_predict)
-            metrics['marked_model_size'] = index_limit.shape[0]
+            metrics[['model_from_val', 'model_from_all', 'people_from_val']] = index_limit.shape[0], model, people
             marked_metrics = pd.concat([marked_metrics, metrics])
 
             # Добавляем новые индексы в модель
@@ -85,6 +88,6 @@ if __name__ == '__main__':
     classifier = Classifier('models/adaptation/best.bin', 'models/classifier.pkl')
     system = ModelTraining('data/processed/perfumery_train.csv', classifier)
     t1 = time()
-    system.start(limit=0.90, batch_size=500)
+    system.start(limit=0.7, batch_size=500)
     print(time() - t1)
     # phrases = ClearingPhrases(full.words_ordered.values).get_best_texts
