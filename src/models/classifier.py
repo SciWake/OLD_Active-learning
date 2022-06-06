@@ -17,6 +17,7 @@ class PredictError(Exception):
 
 class Classifier:
     start_model_status = 0
+    y = None
 
     def __init__(self, fasttext_model: str, faiss_path: str):
         self.faiss_path = faiss_path
@@ -35,9 +36,10 @@ class Classifier:
     def embeddings(self, texts: list or np.array) -> np.array:
         return normalize(np.array([self.model.get_sentence_vector(text.lower()) for text in texts]))
 
-    def add(self, phrases: np.array):
+    def add(self, X: np.array, y: np.array):
         self.index = faiss.IndexFlat(300)
-        self.index.add(self.embeddings(phrases))
+        self.index.add(self.embeddings(X))
+        self.y = y
         with open(self.path(self.faiss_path), 'wb') as f:
             pickle.dump(self.index, f)
         return self
@@ -49,7 +51,7 @@ class Classifier:
         for i in range(x.shape[0]):
             if any(dis[i] <= 1 - limit):  # We save indexes where the model is not sure
                 predict_limit.append(i)
-            all_predict.append(ind[i][0])
+            all_predict.append(self.y[ind[i][0]])
         return np.array(predict_limit), np.array(all_predict)
 
     @staticmethod

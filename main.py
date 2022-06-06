@@ -13,8 +13,7 @@ class ModelTraining:
         self.classifier = classifier
         self.train = pd.read_csv(self.path(train_file)).sort_values('frequency', ascending=False)[
             ['phrase', 'subtopic']]
-        self.init_df = self.__init_df('data/input/parfjum_classifier.csv',
-                                      'data/model/in_model.csv')
+        self.init_df = self.__init_df('data/input/parfjum_classifier.csv', 'data/model/in_model.csv')
 
     @staticmethod
     def path(path):
@@ -42,33 +41,33 @@ class ModelTraining:
 
     def start(self, limit: float, batch_size: int):
         if not self.classifier.start_model_status:
-            self.classifier.add(self.init_df['phrase'])
+            self.classifier.add(self.init_df['phrase'].values, self.init_df['subtopic'].values)
 
         all_metrics, marked_metrics, marked_data = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
         while self.train.shape[0]:
             # Размечаем набор данных моделью
-            predict_limit, all_predict = self.classifier.predict(self.train['phrase'], limit)
-            marked_data = pd.concat([marked_data, self.train.loc[predict_limit]], ignore_index=True)
-            self.__update_init_df(self.train.loc[predict_limit])
+            index_limit, all_predict = self.classifier.predict(self.train['phrase'], limit)
+            marked_data = pd.concat([marked_data, self.train.loc[index_limit]], ignore_index=True)
+            self.__update_init_df(self.train.loc[index_limit])
 
             # Получаем разметку и отправляем в размеченный набор данных
             batch = self.batch(batch_size=batch_size)
             self.__update_init_df(batch)
 
             # Оцениваем качество модели на всех доступных данных
-            predict_limit, all_predict = self.classifier.predict(self.init_df['phrase'], limit)
+            index_limit, all_predict = self.classifier.predict(self.init_df['phrase'], limit)
             metrics = self.classifier.metrics(self.init_df['subtopic'], self.init_df['subtopic'][all_predict])
-            metrics['marked_model_size'] = predict_limit.shape[0]
+            metrics['marked_model_size'] = index_limit.shape[0]
             all_metrics = pd.concat([all_metrics, metrics])
 
             # Оцениваем качество модели на предсказнных ей
-            predict_limit, all_predict = self.classifier.predict(marked_data['phrase'], limit)
+            index_limit, all_predict = self.classifier.predict(marked_data['phrase'], limit)
             metrics = self.classifier.metrics(marked_data['subtopic'], self.init_df['subtopic'][all_predict])
-            metrics['marked_model_size'] = predict_limit.shape[0]
+            metrics['marked_model_size'] = index_limit.shape[0]
             marked_metrics = pd.concat([marked_metrics, metrics])
 
             # Добавляем новые индексы в модель
-            self.classifier.add(self.init_df['phrase'])
+            self.classifier.add(self.init_df['phrase'].values, self.init_df['subtopic'])
 
         all_metrics.to_csv(self.path(f'data/model/{limit}_{batch_size}_all_metrics.csv'), index=False)
         marked_metrics.to_csv(self.path(f'data/model/{limit}_{batch_size}_marked_metrics.csv'), index=False)
