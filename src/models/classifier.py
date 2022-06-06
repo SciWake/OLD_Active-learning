@@ -42,29 +42,11 @@ class Classifier:
             pickle.dump(self.index, f)
         return self
 
-    @staticmethod  # Implement via sorting using argmax
-    def allmax(a: np.array, limit: float) -> dict or None:
-        if len(a) == 0:
-            return None
-        all_limit = []
-        all_ = [0]
-        max_ = a[0]
-        for i in range(a.shape[0]):
-            if a[i] <= 1 - limit:
-                all_limit.append(i)
-            if a[i] < max_:
-                all_ = [i]
-                max_ = a[i]
-            elif a[i] == max_ and i:
-                all_.append(i)
-        return all_limit, all_
-
     def predict(self, x: np.array, limit: float) -> tuple:
         # predict_limit - то, что предсказал модель
         predict_limit, all_predict = [], []
         dis, ind = self.index.search(self.embeddings(x), k=5)
         for i in range(x.shape[0]):
-            limit_max, max_ = self.allmax(dis[i], limit)
             if any(dis[i] <= 1 - limit):  # We save indexes where the model is not sure
                 predict_limit.append(i)
             all_predict.append(ind[i][0])
