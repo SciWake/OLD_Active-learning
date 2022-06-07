@@ -15,13 +15,19 @@ class ModelTraining:
         self.classifier = classifier
         self.train = pd.read_csv(self.path(train_file)).sort_values('frequency', ascending=False)[
             ['phrase', 'subtopic']]
-        self.init_df = self.__init_df('data/input/parfjum_classifier.csv', 'data/model/in_model.csv')
+        self.init_df = self.__init_data('data/input/parfjum_classifier.csv', 'data/model/in_model.csv')
 
     @staticmethod
     def path(path):
         return Path(os.getcwd(), path)
 
-    def __init_df(self, path: str, save_path: str) -> pd.DataFrame:
+    def __init_data(self, path: str, save_path: str) -> pd.DataFrame:
+        '''
+        subtopic_true - позволяет производить валидацию.
+        :param path: Данные холодного старта.
+        :param save_path: путь сохранения инициализированного набора данных.
+        :return: Инициализированный набор данных.
+        '''
         df = pd.read_csv(self.path(path)).fillna(method="pad", axis=1)['Подтема'].dropna().values
         df = pd.DataFrame({'phrase': df, 'subtopic': df, 'subtopic_true': df})
         self.train['subtopic_true'] = self.train['subtopic']

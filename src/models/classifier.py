@@ -18,6 +18,8 @@ class PredictError(Exception):
 class Classifier:
     start_model_status = 0
     y = np.array([])
+    emb = {}
+    t = 0
 
     def __init__(self, fasttext_model: str, faiss_path: str):
         self.faiss_path = faiss_path
@@ -34,7 +36,12 @@ class Classifier:
         return Path(os.getcwd(), path)
 
     def embeddings(self, texts: list or np.array) -> np.array:
-        return normalize(np.array([self.model.get_sentence_vector(text.lower()) for text in texts]))
+        emb = []
+        for text in texts:
+            if not self.emb.get(text, np.array([])).shape[0]:
+                self.emb[text] = normalize([self.model.get_sentence_vector(text.lower())])[0]
+            emb.append(self.emb.get(text))
+        return np.array(emb, dtype='float32')
 
     def add(self, X: np.array, y: np.array):
         if not self.y.shape[0]:
