@@ -17,14 +17,16 @@ class PredictError(Exception):
 
 class Classifier:
     start_model_status = 0
-    y = None
+    y = np.array([])
+    emb = {}
+    t = 0
 
     def __init__(self, fasttext_model: str, faiss_path: str):
         self.faiss_path = faiss_path
         self.model = fasttext.load_model(str(self.path(fasttext_model)))
         try:
             with open(self.path(faiss_path), 'rb') as f:
-                self.index = pickle.load(f)
+                self.index, self.y = pickle.load(f)
                 self.start_model_status = 1
         except FileNotFoundError:
             print('No launch model found')
@@ -34,14 +36,20 @@ class Classifier:
         return Path(os.getcwd(), path)
 
     def embeddings(self, texts: list or np.array) -> np.array:
-        return normalize(np.array([self.model.get_sentence_vector(text.lower()) for text in texts]))
+        emb = []
+        for text in texts:
+            if not self.emb.get(text, np.array([])).shape[0]:
+                self.emb[text] = normalize([self.model.get_sentence_vector(text.lower())])[0]
+            emb.append(self.emb.get(text))
+        return np.array(emb, dtype='float32')
 
     def add(self, X: np.array, y: np.array):
-        self.index = faiss.IndexFlat(300)
+        if not self.y.shape[0]:
+            self.index = faiss.IndexFlat(300)
         self.index.add(self.embeddings(X))
-        self.y = y
+        self.y = np.append(self.y, y)
         with open(self.path(self.faiss_path), 'wb') as f:
-            pickle.dump(self.index, f)
+            pickle.dump((self.index, self.y), f)
         return self
 
     def predict(self, x: np.array, limit: float) -> tuple:
@@ -57,8 +65,8 @@ class Classifier:
     @staticmethod
     def metrics(y_true: np.array, y_pred: np.array) -> pd.DataFrame:
         return pd.DataFrame({
-            'f1': [f1_score(y_true, y_pred, average='macro')],
-            'precision': [precision_score(y_true, y_pred, average='macro', zero_division=1)],
-            'recall': [recall_score(y_true, y_pred, average='macro', zero_division=0)],
+            'f1': [f1_score(y_true, y_pred, average='weighted')],
+            'precision': [precision_score(y_true, y_pred, average='weighted', zero_division=1)],
+            'recall': [recall_score(y_true, y_pred, average='weighted', zero_division=0)],
             'validation_size': [y_true.shape[0]]
         })
