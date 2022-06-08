@@ -16,6 +16,7 @@ class ModelTraining:
         self.train = pd.read_csv(self.path(train_file)).sort_values('frequency', ascending=False)[
             ['phrase', 'subtopic']]
         self.init_df = self.__init_data('data/input/parfjum_classifier.csv', 'data/model/in_model.csv')
+        self.init_size = self.init_df.shape[0]
 
     @staticmethod
     def path(path):
@@ -87,11 +88,13 @@ class ModelTraining:
                 self.run_model = True
 
             # Добавляем новые индексы в модель
-            self.classifier.add(self.init_df['phrase'].values, self.init_df['subtopic'])
+            self.classifier.add(self.init_df['phrase'][self.init_size:], self.init_df['subtopic'][self.init_size:])
+            self.init_size = self.init_df.shape[0]  # Обновляем размер набора данных
 
         all_metrics.to_csv(self.path(f'data/model/{limit}_{batch_size}_all_metrics.csv'), index=False)
         marked_metrics.to_csv(self.path(f'data/model/{limit}_{batch_size}_marked_metrics.csv'), index=False)
         marked_data.to_csv(self.path(f'data/model/{limit}_{batch_size}_marked.csv'), index=False)
+        self.classifier.add(self.init_df['phrase'], self.init_df['subtopic'])
 
 
 if __name__ == '__main__':
