@@ -16,15 +16,6 @@ class ModelTraining:
         self.init_df = self.__init_data('data/input/parfjum_classifier.csv', 'data/model/in_model.csv')
         self.init_size = self.init_df.shape[0]
 
-    @staticmethod
-    def path(path):
-        return Path(os.getcwd(), path)
-
-    def read_train(self, train_file: str):
-        train = pd.read_csv(self.path(train_file)).sort_values('frequency', ascending=False)[['phrase', 'subtopic']]
-        train['true'] = train['subtopic']
-        return train.groupby(by='phrase').agg(subtopic=('subtopic', 'unique'), true=('true', 'unique')).reset_index()
-
     def __init_data(self, path: str, save_path: str) -> pd.DataFrame:
         '''
         subtopic_true - позволяет производить валидацию.
@@ -37,10 +28,6 @@ class ModelTraining:
         df.to_csv(self.path(save_path), index=False)
         return df
 
-    # Upgrade to implementation from PyTorch
-    def batch(self, batch_size: int) -> pd.DataFrame:
-        return self.train[:batch_size]
-
     # There may be data preprocessing or it may be placed in a separate class
     def __update_init_df(self, markup: pd.DataFrame):
         '''
@@ -49,6 +36,19 @@ class ModelTraining:
         '''
         self.init_df = pd.concat([self.init_df, markup], ignore_index=True)
         self.init_df.to_csv(self.path('data/model/in_model.csv'))
+
+    @staticmethod
+    def path(path):
+        return Path(os.getcwd(), path)
+
+    # Upgrade to implementation from PyTorch
+    def batch(self, batch_size: int) -> pd.DataFrame:
+        return self.train[:batch_size]
+
+    def read_train(self, train_file: str):
+        train = pd.read_csv(self.path(train_file)).sort_values('frequency', ascending=False)[['phrase', 'subtopic']]
+        train['true'] = train['subtopic']
+        return train.groupby(by='phrase').agg(subtopic=('subtopic', 'unique'), true=('true', 'unique')).reset_index()
 
     def start(self, limit: float, batch_size: int):
         if not self.classifier.start_model_status:
