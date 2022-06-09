@@ -42,10 +42,10 @@ class Classifier:
             emb.append(self.emb.get(text))
         return np.array(emb, dtype='float32')
 
-    def add(self, X: np.array, y: np.array):
+    def add(self, x: np.array, y: np.array):
         if not self.y.shape[0]:
             self.index = faiss.IndexFlat(300)
-        self.index.add(self.embeddings(X))
+        self.index.add(self.embeddings(x))
         self.y = np.append(self.y, y)
         with open(self.path(self.faiss_path), 'wb') as f:
             pickle.dump((self.index, self.y), f)
@@ -57,7 +57,7 @@ class Classifier:
         for i in range(x.shape[0]):
             if any(dis[i] <= 1 - limit):  # We save indexes where the model is not sure
                 predict_limit.append(i)
-                all_predict.append(self.y[ind[i][dis[i] <= 1 - limit]])
+                all_predict.append(list(set(self.y[ind[i][dis[i] <= 1 - limit]])))  # Consider the weighted confidence of classes
             else:  # Выбор топ 5 топиков
                 unique = np.array([], dtype='object')
                 for subtopic in self.y[ind[i]]:
@@ -66,7 +66,7 @@ class Classifier:
                     if len(unique) == 5:
                         break
                 all_predict.append(unique)
-        return np.array(predict_limit, dtype='object'), np.array(all_predict, dtype='object')
+        return np.array(predict_limit), np.array(all_predict, dtype='object')
 
     @staticmethod
     def metrics(y_true: np.array, y_pred: np.array) -> pd.DataFrame:
