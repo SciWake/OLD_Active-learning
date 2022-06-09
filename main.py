@@ -82,8 +82,8 @@ class ModelTraining:
                 marked_metrics = pd.concat([marked_metrics, metrics])
 
             # Оцениваем качество модели на всех доступных данных
-            index_limit, all_predict = self.classifier.predict(self.init_df['phrase'], limit)
-            metrics = self.classifier.metrics(self.init_df['subtopic_true'].values, all_predict)
+            index_limit, all_predict = self.classifier.predict(batch['phrase'], limit)
+            metrics = self.classifier.metrics(batch['true'].values, all_predict)
             metrics[['model_from_val', 'model_from_all', 'people_from_val']] = index_limit.shape[0], model, people
             all_metrics = pd.concat([all_metrics, metrics])
             if metrics['precision'][0] >= 0.98:

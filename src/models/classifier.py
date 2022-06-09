@@ -4,7 +4,7 @@ import faiss
 import fasttext
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import normalize
+from sklearn.preprocessing import MultiLabelBinarizer, normalize
 from sklearn.metrics import precision_score, recall_score, f1_score
 from pathlib import Path
 
@@ -47,8 +47,8 @@ class Classifier:
             self.index = faiss.IndexFlat(300)
         self.index.add(self.embeddings(x))
         self.y = np.append(self.y, y)
-        with open(self.path(self.faiss_path), 'wb') as f:
-            pickle.dump((self.index, self.y), f)
+        # with open(self.path(self.faiss_path), 'wb') as f:
+        #     pickle.dump((self.index, self.y), f)
         return self
 
     def predict(self, x: np.array, limit: float) -> tuple:
@@ -57,7 +57,8 @@ class Classifier:
         for i in range(x.shape[0]):
             if any(dis[i] <= 1 - limit):  # We save indexes where the model is not sure
                 predict_limit.append(i)
-                all_predict.append(list(set(self.y[ind[i][dis[i] <= 1 - limit]])))  # Consider the weighted confidence of classes
+                all_predict.append(
+                    list(set(self.y[ind[i][dis[i] <= 1 - limit]])))  # Consider the weighted confidence of classes
             else:  # Выбор топ 5 топиков
                 unique = np.array([], dtype='object')
                 for subtopic in self.y[ind[i]]:
@@ -68,12 +69,14 @@ class Classifier:
                 all_predict.append(unique)
         return np.array(predict_limit), np.array(all_predict, dtype='object')
 
-    @staticmethod
-    def metrics(y_true: np.array, y_pred: np.array) -> pd.DataFrame:
-        y_pred = [y_true[i] if y_true[i] in y_pred[i] else y_pred[i][0] for i in range(y_pred.shape[0])]
+    def metrics(self, y_true: np.array, y_pred: np.array) -> pd.DataFrame:
+        # y_pred = [y_true[i] if y_true[i] in y_pred[i] else y_pred[i][0] for i in range(y_pred.shape[0])]
+        mlb = MultiLabelBinarizer(classes=np.unique(self.y))
+        y_true = mlb.fit_transform(y_true)
+        y_pred = mlb.transform(y_pred)
         return pd.DataFrame({
-            'f1': [f1_score(y_true, y_pred, average='weighted')],
-            'precision': [precision_score(y_true, y_pred, average='weighted', zero_division=1)],
-            'recall': [recall_score(y_true, y_pred, average='weighted', zero_division=0)],
+            'f1': [f1_score(y_true, y_pred, average='samples')],
+            'precision': [precision_score(y_true, y_pred, average='samples', zero_division=1)],
+            'recall': [recall_score(y_true, y_pred, average='samples', zero_division=0)],
             'validation_size': [y_true.shape[0]]
         })
