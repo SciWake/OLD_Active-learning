@@ -43,12 +43,18 @@ class ModelTraining:
 
     # Upgrade to implementation from PyTorch
     def batch(self, batch_size: int) -> pd.DataFrame:
-        return self.train[:batch_size]
+        batch = self.train[:batch_size]  # Получаем разметку и отправляем в размеченный набор данных
+        self.train = self.train.drop(index=batch.index).reset_index(drop=True)
+        self.__update_init_df(batch.explode(['subtopic', 'true']))
+        return batch
 
     def read_train(self, train_file: str):
         train = pd.read_csv(self.path(train_file)).sort_values('frequency', ascending=False)[['phrase', 'subtopic']]
         train['true'] = train['subtopic']
         return train.groupby(by='phrase').agg(subtopic=('subtopic', 'unique'), true=('true', 'unique')).reset_index()
+
+    def sma(self):
+        pass
 
     def start(self, limit: float, batch_size: int):
         if not self.classifier.start_model_status:
@@ -68,11 +74,8 @@ class ModelTraining:
                 model += index_limit.shape[0]
                 self.__update_init_df(predict_df.explode('subtopic'))
 
-            # Получаем разметку и отправляем в размеченный набор данных
             batch = self.batch(batch_size=batch_size)
-            self.train = self.train.drop(index=batch.index).reset_index(drop=True)
             people += batch.shape[0]
-            self.__update_init_df(batch.explode(['subtopic', 'true']))
 
             if self.run_model:
                 # Оцениваем качество модели на предсказнных ей
