@@ -1,7 +1,6 @@
 import os
 import pandas as pd
 from time import time
-from sklearn.metrics import classification_report
 from pathlib import Path
 from src.data import ClearingPhrases
 from src.models import Classifier
@@ -13,8 +12,7 @@ class ModelTraining:
     def __init__(self, train_file: str, classifier: Classifier, clearing: ClearingPhrases = None):
         self.clearing = clearing
         self.classifier = classifier
-        self.train = pd.read_csv(self.path(train_file)).sort_values('frequency', ascending=False)[
-            ['phrase', 'subtopic']]
+        self.train = pd.read_csv(self.path(train_file)).sort_values('frequency', ascending=False)[['phrase', 'subtopic']]
         self.init_df = self.__init_data('data/input/parfjum_classifier.csv', 'data/model/in_model.csv')
         self.init_size = self.init_df.shape[0]
 
@@ -61,10 +59,10 @@ class ModelTraining:
                 predict_df = pd.DataFrame({'phrase': self.train.loc[index_limit].phrase,
                                            'subtopic': all_predict[index_limit] if index_limit.shape[0] else [],
                                            'subtopic_true': self.train.loc[index_limit]['subtopic_true']})
-                marked_data = pd.concat([marked_data, predict_df], ignore_index=True)
+                marked_data = pd.concat([marked_data, predict_df.explode('subtopic')], ignore_index=True)
                 self.train = self.train.drop(index=index_limit).reset_index(drop=True)
                 model += index_limit.shape[0]
-                self.__update_init_df(predict_df)
+                self.__update_init_df(predict_df.explode('subtopic'))
 
             # Получаем разметку и отправляем в размеченный набор данных
             batch = self.batch(batch_size=batch_size)
@@ -75,13 +73,13 @@ class ModelTraining:
             if self.run_model:
                 # Оцениваем качество модели на предсказнных ей
                 index_limit, all_predict = self.classifier.predict(marked_data['phrase'], limit)
-                metrics = self.classifier.metrics(marked_data['subtopic_true'], all_predict)
+                metrics = self.classifier.metrics(marked_data['subtopic_true'].values, all_predict)
                 metrics[['model_from_val', 'model_from_all', 'people_from_val']] = index_limit.shape[0], model, people
                 marked_metrics = pd.concat([marked_metrics, metrics])
 
             # Оцениваем качество модели на всех доступных данных
             index_limit, all_predict = self.classifier.predict(self.init_df['phrase'], limit)
-            metrics = self.classifier.metrics(self.init_df['subtopic_true'], all_predict)
+            metrics = self.classifier.metrics(self.init_df['subtopic_true'].values, all_predict)
             metrics[['model_from_val', 'model_from_all', 'people_from_val']] = index_limit.shape[0], model, people
             all_metrics = pd.concat([all_metrics, metrics])
             if metrics['precision'][0] >= 0.98:
