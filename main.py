@@ -24,7 +24,7 @@ class ModelTraining:
         :return: Инициализированный набор данных.
         '''
         df = pd.read_csv(self.path(path)).fillna(method="pad", axis=1)['Подтема'].dropna().values
-        df = pd.DataFrame({'phrase': df, 'subtopic': df, 'subtopic_true': df})
+        df = pd.DataFrame({'phrase': df, 'subtopic': df, 'true': df})
         df.to_csv(self.path(save_path), index=False)
         return df
 
