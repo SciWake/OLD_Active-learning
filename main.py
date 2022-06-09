@@ -12,13 +12,18 @@ class ModelTraining:
     def __init__(self, train_file: str, classifier: Classifier, clearing: ClearingPhrases = None):
         self.clearing = clearing
         self.classifier = classifier
-        self.train = pd.read_csv(self.path(train_file)).sort_values('frequency', ascending=False)[['phrase', 'subtopic']]
+        self.train = self.read_train(train_file)
         self.init_df = self.__init_data('data/input/parfjum_classifier.csv', 'data/model/in_model.csv')
         self.init_size = self.init_df.shape[0]
 
     @staticmethod
     def path(path):
         return Path(os.getcwd(), path)
+
+    def read_train(self, train_file: str):
+        train = pd.read_csv(self.path(train_file)).sort_values('frequency', ascending=False)[['phrase', 'subtopic']]
+        train['true'] = train['subtopic']
+        return train.groupby(by='phrase').agg(subtopic=('subtopic', 'unique'), true=('true', 'unique')).reset_index()
 
     def __init_data(self, path: str, save_path: str) -> pd.DataFrame:
         '''
@@ -29,7 +34,6 @@ class ModelTraining:
         '''
         df = pd.read_csv(self.path(path)).fillna(method="pad", axis=1)['Подтема'].dropna().values
         df = pd.DataFrame({'phrase': df, 'subtopic': df, 'subtopic_true': df})
-        self.train['subtopic_true'] = self.train['subtopic']
         df.to_csv(self.path(save_path), index=False)
         return df
 
@@ -68,7 +72,7 @@ class ModelTraining:
             batch = self.batch(batch_size=batch_size)
             self.train = self.train.drop(index=batch.index).reset_index(drop=True)
             people += batch.shape[0]
-            self.__update_init_df(batch)
+            self.__update_init_df(batch.explode(['subtopic', 'true']))
 
             if self.run_model:
                 # Оцениваем качество модели на предсказнных ей
