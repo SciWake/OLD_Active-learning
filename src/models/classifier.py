@@ -75,8 +75,8 @@ class Classifier:
         y_true = mlb.fit_transform(y_true)
         y_pred = mlb.transform(y_pred)
         return pd.DataFrame({
-            'f1': [f1_score(y_true, y_pred, average='samples')],
-            'precision': [precision_score(y_true, y_pred, average='samples', zero_division=1)],
-            'recall': [recall_score(y_true, y_pred, average='samples', zero_division=0)],
+            'f1': [f1_score(y_pred=y_true, y_true=y_pred, average='samples')],
+            'precision': [precision_score(y_pred=y_true, y_true=y_pred, average='samples', zero_division=1)],
+            'recall': [recall_score(y_pred=y_true, y_true=y_pred, average='samples', zero_division=0)],
             'validation_size': [y_true.shape[0]]
         })

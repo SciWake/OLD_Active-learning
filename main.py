@@ -12,7 +12,7 @@ class ModelTraining:
     def __init__(self, train_file: str, classifier: Classifier, clearing: ClearingPhrases = None):
         self.clearing = clearing
         self.classifier = classifier
-        self.train = self.read_train(train_file)
+        self.train = self.__read_train(train_file)
         self.init_df = self.__init_data('data/input/parfjum_classifier.csv', 'data/model/in_model.csv')
         self.init_size = self.init_df.shape[0]
 
@@ -27,6 +27,11 @@ class ModelTraining:
         df = pd.DataFrame({'phrase': df, 'subtopic': df, 'true': df})
         df.to_csv(self.path(save_path), index=False)
         return df
+
+    def __read_train(self, train_file: str):
+        train = pd.read_csv(self.path(train_file)).sort_values('frequency', ascending=False)[['phrase', 'subtopic']]
+        train['true'] = train['subtopic']
+        return train.groupby(by='phrase').agg(subtopic=('subtopic', 'unique'), true=('true', 'unique')).reset_index()
 
     # There may be data preprocessing or it may be placed in a separate class
     def __update_init_df(self, markup: pd.DataFrame):
@@ -48,15 +53,7 @@ class ModelTraining:
         self.__update_init_df(batch.explode(['subtopic', 'true']))
         return batch
 
-    def read_train(self, train_file: str):
-        train = pd.read_csv(self.path(train_file)).sort_values('frequency', ascending=False)[['phrase', 'subtopic']]
-        train['true'] = train['subtopic']
-        return train.groupby(by='phrase').agg(subtopic=('subtopic', 'unique'), true=('true', 'unique')).reset_index()
-
-    def sma(self):
-        pass
-
-    def start(self, limit: float, batch_size: int):
+    def start(self, limit: float, batch_size: int, window: int = 3):
         if not self.classifier.start_model_status:
             self.classifier.add(self.init_df['phrase'].values, self.init_df['subtopic'].values)
 
@@ -68,38 +65,66 @@ class ModelTraining:
                 index_limit, all_predict = self.classifier.predict(self.train['phrase'], limit)
                 predict_df = pd.DataFrame({'phrase': self.train.loc[index_limit].phrase,
                                            'subtopic': all_predict[index_limit] if index_limit.shape[0] else [],
-                                           'subtopic_true': self.train.loc[index_limit]['subtopic_true']})
-                marked_data = pd.concat([marked_data, predict_df.explode('subtopic')], ignore_index=True)
+                                           'true': self.train.loc[index_limit]['true']})
+                marked_data = pd.concat([marked_data, predict_df.explode('subtopic').explode('true')], ignore_index=True)
+
+                # Оцениваем качество модели
+                if index_limit.shape[0]:
+                    # index_limit, all_predict = self.classifier.predict(batch['phrase'], limit)
+                    metrics = self.classifier.metrics(self.train.loc[index_limit].subtopic, all_predict[index_limit])
+                    metrics[['model_from_val', 'model_from_all', 'people_from_val']] = index_limit.shape[0], model, people
+                    marked_metrics = pd.concat([marked_metrics, metrics])
+                    marked_metrics.iloc[-1:, :3] = marked_metrics.iloc[-window:, :3].agg('mean')
+
                 self.train = self.train.drop(index=index_limit).reset_index(drop=True)
                 model += index_limit.shape[0]
-                self.__update_init_df(predict_df.explode('subtopic'))
+                self.__update_init_df(predict_df.explode('subtopic').explode('true'))
+
+            # if self.run_model:
+            #     # Размечаем набор данных моделью
+            #     index_limit, all_predict = self.classifier.predict(self.train['phrase'], limit)
+            #     predict_df = pd.DataFrame({'phrase': self.train.loc[index_limit].phrase,
+            #                                'subtopic': all_predict[index_limit] if index_limit.shape[0] else [],
+            #                                'subtopic_true': self.train.loc[index_limit]['true']})
+            #     marked_data = pd.concat([marked_data, predict_df.explode('subtopic')], ignore_index=True)
+            #     self.train = self.train.drop(index=index_limit).reset_index(drop=True)
+            #     model += index_limit.shape[0]
+            #     self.__update_init_df(predict_df.explode('subtopic'))
 
             batch = self.batch(batch_size=batch_size)
             people += batch.shape[0]
 
-            if self.run_model:
-                # Оцениваем качество модели на предсказнных ей
-                index_limit, all_predict = self.classifier.predict(marked_data['phrase'], limit)
-                metrics = self.classifier.metrics(marked_data['subtopic_true'].values, all_predict)
-                metrics[['model_from_val', 'model_from_all', 'people_from_val']] = index_limit.shape[0], model, people
-                marked_metrics = pd.concat([marked_metrics, metrics])
-
-            # Оцениваем качество модели на всех доступных данных
+            # Оцениваем качество модели по батчам
             index_limit, all_predict = self.classifier.predict(batch['phrase'], limit)
-            metrics = self.classifier.metrics(batch['true'].values, all_predict)
+            metrics = self.classifier.metrics(batch['subtopic'].values, all_predict)
             metrics[['model_from_val', 'model_from_all', 'people_from_val']] = index_limit.shape[0], model, people
             all_metrics = pd.concat([all_metrics, metrics])
-            if metrics['precision'][0] >= 0.98:
+            all_metrics.iloc[-1:, :3] = all_metrics.iloc[-window:, :3].agg('mean')
+            if people >= 3500:
                 self.run_model = True
 
+            # Оцениваем качество модели на всех доступных данных
+            # index_limit, all_predict = self.classifier.predict(self.init_df['phrase'], limit)
+            # metrics = self.classifier.metrics(self.init_df.groupby(by='phrase').agg(true=('true', 'unique'))['true'].values, all_predict)
+            # metrics[['model_from_val', 'model_from_all', 'people_from_val']] = index_limit.shape[0], model, people
+            # all_metrics = pd.concat([all_metrics, metrics])
+            # if metrics['precision'][0] >= 0.98:
+            #     self.run_model = False
+
+            # if self.run_model:
+            #     # Оцениваем качество модели на предсказнных ей
+            #     index_limit, all_predict = self.classifier.predict(marked_data['phrase'], limit)
+            #     metrics = self.classifier.metrics(marked_data['subtopic_true'].values, all_predict)
+            #     metrics[['model_from_val', 'model_from_all', 'people_from_val']] = index_limit.shape[0], model, people
+            #     marked_metrics = pd.concat([marked_metrics, metrics])
+
             # Добавляем новые индексы в модель
-            self.classifier.add(self.init_df['phrase'][self.init_size:], self.init_df['subtopic'][self.init_size:])
+            self.classifier.add(self.init_df['phrase'][self.init_size:], self.init_df['true'][self.init_size:])
             self.init_size = self.init_df.shape[0]  # Обновляем размер набора данных
 
         all_metrics.to_csv(self.path(f'data/model/{limit}_{batch_size}_all_metrics.csv'), index=False)
         marked_metrics.to_csv(self.path(f'data/model/{limit}_{batch_size}_marked_metrics.csv'), index=False)
         marked_data.to_csv(self.path(f'data/model/{limit}_{batch_size}_marked.csv'), index=False)
-        self.classifier.add(self.init_df['phrase'], self.init_df['subtopic'])
 
 
 if __name__ == '__main__':
@@ -109,5 +134,5 @@ if __name__ == '__main__':
     classifier = Classifier('models/adaptation/best.bin', 'models/classifier.pkl')
     system = ModelTraining('data/processed/perfumery_train.csv', classifier)
     t1 = time()
-    system.start(limit=0.80, batch_size=500)
+    system.start(limit=0.95, batch_size=500)
     print(time() - t1)
