@@ -51,25 +51,30 @@ class Classifier:
         #     pickle.dump((self.index, self.y), f)
         return self
 
+    @staticmethod
+    def __get_top_classes(classes: np.array, max_count: int = 5) -> list:
+        '''
+        Возвращает n-e количество предсказанных классов моделью.
+        :param classes: Классы из которых небходимо выбрать топ n.
+        :param max_count: Максимальное количество возвращаемых классов.
+        :return: Список классов для текущего объекта.
+        '''
+        unique = set()
+        for subtopic in classes:
+            unique = unique.union(set(subtopic))
+            if len(unique) >= max_count:
+                break
+        return list(unique)[:5]
+
     def predict(self, x: np.array, limit: float) -> tuple:
         predict_limit, all_predict = [], []
         dis, ind = self.index.search(self.embeddings(x), k=10)
         for i in range(x.shape[0]):
             if any(dis[i] <= 1 - limit):  # We save indexes where the model is not sure
                 predict_limit.append(i)
-                unique = set()
-                for subtopic in self.y[ind[i][dis[i] <= 1 - limit]]:
-                    unique = unique.union(set(subtopic))
-                    if len(unique) >= 5:
-                        break
-                all_predict.append(list(unique)[:5])  # Consider the weighted confidence of classes
+                all_predict.append(self.__get_top_classes(self.y[ind[i][dis[i] <= 1 - limit]]))  # Consider the weighted confidence of classes
             else:  # Выбор топ 5 топиков
-                unique = set()
-                for subtopic in self.y[ind[i]]:
-                    unique = unique.union(set(subtopic))
-                    if len(unique) >= 5:
-                        break
-                all_predict.append(list(unique)[:5])
+                all_predict.append(self.__get_top_classes(self.y[ind[i]]))
         return np.array(predict_limit), np.array(all_predict, dtype='object')
 
     def metrics(self, y_true: np.array, y_pred: np.array) -> pd.DataFrame:
