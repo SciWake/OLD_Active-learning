@@ -85,28 +85,17 @@ class ModelTraining:
                 model += index_limit.shape[0]
                 self.__update_init_df(predict_df.explode('subtopic').explode('true'))
 
-            # if self.run_model:
-            #     # Размечаем набор данных моделью
-            #     index_limit, all_predict = self.classifier.predict(self.train['phrase'], limit)
-            #     predict_df = pd.DataFrame({'phrase': self.train.loc[index_limit].phrase,
-            #                                'subtopic': all_predict[index_limit] if index_limit.shape[0] else [],
-            #                                'subtopic_true': self.train.loc[index_limit]['true']})
-            #     marked_data = pd.concat([marked_data, predict_df.explode('subtopic')], ignore_index=True)
-            #     self.train = self.train.drop(index=index_limit).reset_index(drop=True)
-            #     model += index_limit.shape[0]
-            #     self.__update_init_df(predict_df.explode('subtopic'))
-
             batch = self.batch(batch_size=batch_size)
             people += batch.shape[0]
 
             # Оцениваем качество модели по батчам
             index_limit, all_predict = self.classifier.predict(batch['phrase'], limit)
-            metrics = self.classifier.metrics(batch['subtopic'].values, all_predict)
+            metrics = self.classifier.metrics(batch['true'].values, all_predict)
             metrics[['model_from_val', 'model_from_all', 'people_from_val']] = index_limit.shape[0], model, people
             all_metrics = pd.concat([all_metrics, metrics])
             all_metrics.iloc[-1:, :3] = all_metrics.iloc[-window:, :3].agg('mean')
             if people >= 3500:
-                self.run_model = True
+                self.run_model = False
 
             # Оцениваем качество модели на всех доступных данных
             # index_limit, all_predict = self.classifier.predict(self.init_df['phrase'], limit)
@@ -142,5 +131,5 @@ if __name__ == '__main__':
     classifier = Classifier('models/adaptation/best.bin', 'models/classifier.pkl')
     system = ModelTraining('data/processed/perfumery_train.csv', classifier)
     t1 = time()
-    system.start(limit=0.95, batch_size=500)
+    system.start(limit=0.80, batch_size=500)
     print(time() - t1)
