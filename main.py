@@ -66,18 +66,17 @@ class ModelTraining:
             if self.run_model:
                 # Размечаем набор данных моделью
                 index_limit, all_predict = self.classifier.predict(self.train['phrase'], limit)
-                predict_df = pd.DataFrame({'phrase': self.train.loc[index_limit].phrase,
+                predict_df = pd.DataFrame({'phrase': self.train.iloc[index_limit].phrase,
                                            'subtopic': all_predict[index_limit] if index_limit.shape[0] else [],
-                                           'true': self.train.loc[index_limit]['true']})
+                                           'true': self.train.iloc[index_limit]['true']})
                 marked_data = pd.concat([marked_data, predict_df.explode('subtopic').explode('true')],
                                         ignore_index=True)
 
                 # Оцениваем качество модели, если количество предсказанных объектов больше 10
                 if index_limit.shape[0] > 10:
                     # index_limit, all_predict = self.classifier.predict(batch['phrase'], limit)
-                    metrics = self.classifier.metrics(self.train.loc[index_limit]['subtopic'].values, all_predict[index_limit])
-                    metrics[['model_from_val', 'model_from_all', 'people_from_val']] = index_limit.shape[
-                                                                                           0], model, people
+                    metrics = self.classifier.metrics(predict_df['true'].values, predict_df['subtopic'].values)
+                    metrics[['model_from_val', 'model_from_all', 'people_from_val']] = index_limit.shape[0], model, people
                     marked_metrics = pd.concat([marked_metrics, metrics])
                     marked_metrics.iloc[-1:, :3] = marked_metrics.iloc[-window:, :3].agg('mean')
 
@@ -95,7 +94,7 @@ class ModelTraining:
             all_metrics = pd.concat([all_metrics, metrics])
             all_metrics.iloc[-1:, :3] = all_metrics.iloc[-window:, :3].agg('mean')
             if people >= 3500:
-                self.run_model = False
+                self.run_model = True
 
             # Оцениваем качество модели на всех доступных данных
             # index_limit, all_predict = self.classifier.predict(self.init_df['phrase'], limit)
