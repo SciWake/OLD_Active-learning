@@ -92,9 +92,4 @@ class Classifier:
             'recall': [recall_score(y_pred=y_true, y_true=y_pred, average='samples', zero_division=0)],
             'validation_size': [y_true.shape[0]]
         })
-
-# array([array(['Название бренда/автора'], dtype=object),
-#        array(['Название бренда/автора'], dtype=object),
-#        array(['Название бренда/автора'], dtype=object),
-#        array(['Свежий'], dtype=object), array(['Сладкий'], dtype=object)],
-#       dtype=object)
+    
