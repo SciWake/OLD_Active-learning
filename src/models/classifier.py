@@ -57,21 +57,28 @@ class Classifier:
         for i in range(x.shape[0]):
             if any(dis[i] <= 1 - limit):  # We save indexes where the model is not sure
                 predict_limit.append(i)
-                all_predict.append(
-                    list(set(self.y[ind[i][dis[i] <= 1 - limit]])))  # Consider the weighted confidence of classes
-            else:  # Выбор топ 5 топиков
-                unique = np.array([], dtype='object')
-                for subtopic in self.y[ind[i]]:
-                    if subtopic not in unique:
-                        unique = np.append(unique, subtopic)
-                    if len(unique) == 5:
+                unique = set()
+                for subtopic in self.y[ind[i][dis[i] <= 1 - limit]]:
+                    unique = unique.union(set(subtopic))
+                    if len(unique) >= 5:
                         break
-                all_predict.append(unique)
+                all_predict.append(list(unique)[:5])  # Consider the weighted confidence of classes
+            else:  # Выбор топ 5 топиков
+                unique = set()
+                for subtopic in self.y[ind[i]]:
+                    unique = unique.union(set(subtopic))
+                    if len(unique) >= 5:
+                        break
+                all_predict.append(list(unique)[:5])
         return np.array(predict_limit), np.array(all_predict, dtype='object')
 
     def metrics(self, y_true: np.array, y_pred: np.array) -> pd.DataFrame:
         # y_pred = [y_true[i] if y_true[i] in y_pred[i] else y_pred[i][0] for i in range(y_pred.shape[0])]
-        mlb = MultiLabelBinarizer(classes=np.unique(self.y))
+        classes = set()
+        for i in range(y_true.shape[0]):
+            classes = classes | set(y_true[i]) | set(y_pred[i])
+
+        mlb = MultiLabelBinarizer(classes=list(classes))
         y_true = mlb.fit_transform(y_true)
         y_pred = mlb.transform(y_pred)
         return pd.DataFrame({
@@ -80,3 +87,9 @@ class Classifier:
             'recall': [recall_score(y_pred=y_true, y_true=y_pred, average='samples', zero_division=0)],
             'validation_size': [y_true.shape[0]]
         })
+
+# array([array(['Название бренда/автора'], dtype=object),
+#        array(['Название бренда/автора'], dtype=object),
+#        array(['Название бренда/автора'], dtype=object),
+#        array(['Свежий'], dtype=object), array(['Сладкий'], dtype=object)],
+#       dtype=object)

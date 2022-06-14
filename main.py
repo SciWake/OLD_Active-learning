@@ -55,7 +55,10 @@ class ModelTraining:
 
     def start(self, limit: float, batch_size: int, window: int = 3):
         if not self.classifier.start_model_status:
-            self.classifier.add(self.init_df['phrase'].values, self.init_df['subtopic'].values)
+            group_init = self.init_df.groupby(by='phrase').agg(
+                subtopic=('subtopic', 'unique'),
+                true=('true', 'unique')).reset_index()
+            self.classifier.add(group_init['phrase'].values, group_init['subtopic'].values)
 
         people, model = 0, 0
         all_metrics, marked_metrics, marked_data = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
@@ -66,13 +69,15 @@ class ModelTraining:
                 predict_df = pd.DataFrame({'phrase': self.train.loc[index_limit].phrase,
                                            'subtopic': all_predict[index_limit] if index_limit.shape[0] else [],
                                            'true': self.train.loc[index_limit]['true']})
-                marked_data = pd.concat([marked_data, predict_df.explode('subtopic').explode('true')], ignore_index=True)
+                marked_data = pd.concat([marked_data, predict_df.explode('subtopic').explode('true')],
+                                        ignore_index=True)
 
-                # Оцениваем качество модели
-                if index_limit.shape[0]:
+                # Оцениваем качество модели, если количество предсказанных объектов больше 10
+                if index_limit.shape[0] > 10:
                     # index_limit, all_predict = self.classifier.predict(batch['phrase'], limit)
-                    metrics = self.classifier.metrics(self.train.loc[index_limit].subtopic, all_predict[index_limit])
-                    metrics[['model_from_val', 'model_from_all', 'people_from_val']] = index_limit.shape[0], model, people
+                    metrics = self.classifier.metrics(self.train.loc[index_limit]['subtopic'].values, all_predict[index_limit])
+                    metrics[['model_from_val', 'model_from_all', 'people_from_val']] = index_limit.shape[
+                                                                                           0], model, people
                     marked_metrics = pd.concat([marked_metrics, metrics])
                     marked_metrics.iloc[-1:, :3] = marked_metrics.iloc[-window:, :3].agg('mean')
 
@@ -119,7 +124,10 @@ class ModelTraining:
             #     marked_metrics = pd.concat([marked_metrics, metrics])
 
             # Добавляем новые индексы в модель
-            self.classifier.add(self.init_df['phrase'][self.init_size:], self.init_df['true'][self.init_size:])
+            group_init = self.init_df[self.init_size:].groupby(by='phrase').agg(
+                subtopic=('subtopic', 'unique'),
+                true=('true', 'unique')).reset_index()
+            self.classifier.add(group_init['phrase'], group_init['subtopic'])
             self.init_size = self.init_df.shape[0]  # Обновляем размер набора данных
 
         all_metrics.to_csv(self.path(f'data/model/{limit}_{batch_size}_all_metrics.csv'), index=False)
