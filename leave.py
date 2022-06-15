@@ -44,7 +44,7 @@ class Stratified:
 
             # Снятие метрик
             index_limit, all_predict = self.classifier.predict(test['phrase'].values, limit)
-            predict = pd.DataFrame({'phrase': test.phrase, 'subtopic': [all_predict], 'true': test['true']})
+            predict = pd.DataFrame({'phrase': test.phrase, 'subtopic': all_predict.tolist(), 'true': test['true']})
             metrics = self.classifier.metrics(test['true'].values, all_predict)
             metrics['phrase'] = test.phrase.values
 
@@ -54,11 +54,11 @@ class Stratified:
 
         # Сохранение данных
         all_metrics.to_csv(self.path(f'data/model/{limit}_all_metrics.csv'), index=False)
-        predicts.to_csv(self.path(f'data/model/{limit}_marked_metrics.csv'), index=False)
+        predicts.to_csv(self.path(f'data/model/{limit}_predicts.csv'), index=False)
 
 
 if __name__ == '__main__':
-    classifier = Classifier('models/adaptation/new_not_lem.bin', 'models/classifier.pkl')
+    classifier = LeaveClassifier('models/adaptation/new_not_lem.bin', 'models/classifier.pkl')
     system = Stratified('data/processed/perfumery_train.csv', classifier)
     t1 = time()
     system.run(limit=0.9)
