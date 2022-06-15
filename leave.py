@@ -1,9 +1,22 @@
 import os
 import pandas as pd
+import numpy as np
+import faiss
 from time import time
 from pathlib import Path
 from src.models import Classifier
 from sklearn.model_selection import LeaveOneOut
+
+
+class LeaveClassifier(Classifier):
+    def __init__(self, fasttext_model: str, faiss_path: str):
+        super(LeaveClassifier, self).__init__(fasttext_model, faiss_path)
+
+    def add(self, x: np.array, y: np.array):
+        self.index = faiss.IndexFlat(300)
+        self.index.add(self.embeddings(x))
+        self.y = np.append(self.y, y)
+        return self
 
 
 class Stratified:
@@ -32,7 +45,7 @@ class Stratified:
             # Снятие метрик
             index_limit, all_predict = self.classifier.predict(test['phrase'].values, limit)
             predict = pd.DataFrame({'phrase': test.phrase, 'subtopic': [all_predict], 'true': test['true']})
-            metrics = self.classifier.metrics(test['true'].values, all_predict, average='weighted')
+            metrics = self.classifier.metrics(test['true'].values, all_predict)
             metrics['phrase'] = test.phrase.values
 
             # Объединение данных
