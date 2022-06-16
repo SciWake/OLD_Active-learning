@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+import numpy as np
 from time import time
 from pathlib import Path
 from src.data import ClearingPhrases
@@ -23,8 +24,9 @@ class ModelTraining:
         :param save_path: путь сохранения инициализированного набора данных.
         :return: Инициализированный набор данных.
         '''
-        df = pd.read_csv(self.path(path)).fillna(method="pad", axis=1)['Подтема'].dropna().values
-        df = pd.DataFrame({'phrase': df, 'subtopic': df, 'true': df})
+        df = pd.read_csv(self.path(path))
+        c = list({i.strip().lower() for i in np.append(df['Тема'], df['Подтема']) if type(i) == str})
+        df = pd.DataFrame({'phrase': c, 'subtopic': c, 'true': c})
         df.to_csv(self.path(save_path), index=False)
         return df
 
