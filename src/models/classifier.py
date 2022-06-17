@@ -37,8 +37,9 @@ class Classifier:
     def embeddings(self, texts: list or np.array) -> np.array:
         emb = []
         for text in texts:
+            text = text.replace('-', ' ').lower().strip()
             if not self.emb.get(text, np.array([])).shape[0]:
-                self.emb[text] = normalize([self.model.get_sentence_vector(text.lower())])[0]
+                self.emb[text] = normalize([self.model.get_sentence_vector(text)])[0]
             emb.append(self.emb.get(text))
         return np.array(emb, dtype='float32')
 
