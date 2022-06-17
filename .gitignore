@@ -4,3 +4,15 @@
 .ipynb_checkpoints/
 
 *__pycache__/
+
+data/input/
+
+data/model/
+
+data/processed/
+
+model/adaptation/
+
+model/pretrained_fasttext/
+
+*.pkl
