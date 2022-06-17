@@ -21,18 +21,16 @@ class Classifier:
     y = np.array([])
     emb = {}
 
-    def __init__(self, fasttext_model: str, faiss_path: str, embedding_path: str):
+    def __init__(self, fasttext_model: str, faiss_path: str = None, embedding_path: str = None):
         self.faiss_path = faiss_path
         self.model = fasttext.load_model(str(self.path(fasttext_model)))
-        try:
+        if embedding_path:
             with open(self.path(faiss_path), 'rb') as f:
                 self.index, self.y = pickle.load(f)
                 self.start_model_status = 1
-        except FileNotFoundError:
-            print('No launch model found')
-
-        # with open(self.path(embedding_path), 'rb') as f:
-        #     self.emb = pickle.load(f)
+        if embedding_path:
+            with open(self.path(embedding_path), 'rb') as f:
+                self.emb = pickle.load(f)
 
     @staticmethod
     def path(path):
@@ -52,8 +50,8 @@ class Classifier:
             self.index = faiss.IndexFlat(self.vec_size)
         self.index.add(self.embeddings(x))
         self.y = np.append(self.y, y)
-        # with open(self.path(self.faiss_path), 'wb') as f:
-        #     pickle.dump((self.index, self.y), f)
+        with open(self.path(self.faiss_path), 'wb') as f:
+            pickle.dump((self.index, self.y), f)
         return self
 
     @staticmethod
