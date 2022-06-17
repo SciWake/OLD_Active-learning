@@ -4,9 +4,9 @@ import faiss
 import fasttext
 import numpy as np
 import pandas as pd
+from pathlib import Path
 from sklearn.preprocessing import MultiLabelBinarizer, normalize
 from sklearn.metrics import precision_score, recall_score, f1_score
-from pathlib import Path
 
 
 # Add a logger

@@ -85,6 +85,7 @@ class ModelTraining:
                 self.train = self.train.drop(index=index_limit).reset_index(drop=True)
                 self.__update_init_df(predict_df.explode('subtopic').explode('true'))
 
+            # Эмуляция разметки данных разметчиками
             batch = self.batch(batch_size=batch_size)
             people += batch.shape[0]
 
@@ -105,6 +106,7 @@ class ModelTraining:
             self.init_size = self.init_df.shape[0]  # Обновляем размер набора данных
             print(all_metrics.iloc[-1])
 
+        # Сохранение метрик
         all_metrics.to_csv(self.path(f'data/model/{limit}_{batch_size}_all_metrics.csv'), index=False)
         marked_metrics.to_csv(self.path(f'data/model/{limit}_{batch_size}_marked_metrics.csv'), index=False)
         marked_data.to_csv(self.path(f'data/model/{limit}_{batch_size}_marked.csv'), index=False)
