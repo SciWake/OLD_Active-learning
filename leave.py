@@ -4,7 +4,7 @@ import numpy as np
 import faiss
 from time import time
 from pathlib import Path
-from src.models import Classifier
+from src.model import Classifier
 from sklearn.model_selection import LeaveOneOut
 
 
@@ -58,7 +58,7 @@ class Stratified:
 
 
 if __name__ == '__main__':
-    classifier = LeaveClassifier('models/adaptation/new_not_lem.bin', 'models/classifier.pkl')
+    classifier = LeaveClassifier('model/adaptation/new_not_lem.bin', 'model/classifier.pkl')
     system = Stratified('data/processed/perfumery_train.csv', classifier)
     t1 = time()
     system.run(limit=0.9)
