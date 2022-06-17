@@ -17,10 +17,11 @@ class PredictError(Exception):
 
 class Classifier:
     start_model_status = 0
+    vec_size = 300
     y = np.array([])
     emb = {}
 
-    def __init__(self, fasttext_model: str, faiss_path: str):
+    def __init__(self, fasttext_model: str, faiss_path: str, embedding_path: str):
         self.faiss_path = faiss_path
         self.model = fasttext.load_model(str(self.path(fasttext_model)))
         try:
@@ -29,6 +30,9 @@ class Classifier:
                 self.start_model_status = 1
         except FileNotFoundError:
             print('No launch model found')
+
+        # with open(self.path(embedding_path), 'rb') as f:
+        #     self.emb = pickle.load(f)
 
     @staticmethod
     def path(path):
@@ -45,7 +49,7 @@ class Classifier:
 
     def add(self, x: np.array, y: np.array):
         if not self.y.shape[0]:
-            self.index = faiss.IndexFlat(300)
+            self.index = faiss.IndexFlat(self.vec_size)
         self.index.add(self.embeddings(x))
         self.y = np.append(self.y, y)
         # with open(self.path(self.faiss_path), 'wb') as f:
