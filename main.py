@@ -76,7 +76,6 @@ class ModelTraining:
 
                 # Оцениваем качество модели, если количество предсказанных объектов больше 10
                 if index_limit.shape[0] > 10:
-                    # index_limit, all_predict = self.classifier.predict(batch['phrase'], limit)
                     metrics = self.classifier.metrics(predict_df['true'].values, predict_df['subtopic'].values)
                     metrics[['model_from_val', 'model_from_all', 'people_from_val']] = index_limit.shape[0], model, people
                     marked_metrics = pd.concat([marked_metrics, metrics])
@@ -97,21 +96,6 @@ class ModelTraining:
             all_metrics.iloc[-1:, :3] = all_metrics.iloc[-window:, :3].agg('mean')
             if people >= 3500:
                 self.run_model = True
-
-            # Оцениваем качество модели на всех доступных данных
-            # index_limit, all_predict = self.classifier.predict(self.init_df['phrase'], limit)
-            # metrics = self.classifier.metrics(self.init_df.groupby(by='phrase').agg(true=('true', 'unique'))['true'].values, all_predict)
-            # metrics[['model_from_val', 'model_from_all', 'people_from_val']] = index_limit.shape[0], model, people
-            # all_metrics = pd.concat([all_metrics, metrics])
-            # if metrics['precision'][0] >= 0.98:
-            #     self.run_model = False
-
-            # if self.run_model:
-            #     # Оцениваем качество модели на предсказнных ей
-            #     index_limit, all_predict = self.classifier.predict(marked_data['phrase'], limit)
-            #     metrics = self.classifier.metrics(marked_data['subtopic_true'].values, all_predict)
-            #     metrics[['model_from_val', 'model_from_all', 'people_from_val']] = index_limit.shape[0], model, people
-            #     marked_metrics = pd.concat([marked_metrics, metrics])
 
             # Добавляем новые индексы в модель
             group_init = self.init_df[self.init_size:].groupby(by='phrase').agg(
