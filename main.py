@@ -3,33 +3,18 @@ import pandas as pd
 import numpy as np
 from time import time
 from pathlib import Path
-from src.data import ClearingPhrases, CreateModelData
+from src.data import CreateModelData
 from src.models import Classifier
 
 
-class ModelTraining():
+class ModelTraining:
     run_model = False
 
-    def __init__(self, classifier: Classifier, ):
+    def __init__(self, classifier: Classifier):
         self.classifier = classifier
         self.train = self.__read_train('data/processed/train.csv')
-        self.init_df = self.__init_data('data/input/parfjum_classifier.csv',
-                                        'data/models/in_model.csv')
-        self.init_size = self.init_df.shape[0]
-
-    def __init_data(self, path: str, save_path: str) -> pd.DataFrame:
-        '''
-        subtopic_true - позволяет производить валидацию.
-        :param path: Данные холодного старта.
-        :param save_path: путь сохранения инициализированного набора данных.
-        :return: Инициализированный набор данных.
-        '''
-        df = pd.read_csv(self.path(path))
-        c = list(
-            {i.strip().lower() for i in np.append(df['Тема'], df['Подтема']) if type(i) == str})
-        df = pd.DataFrame({'phrase': c, 'subtopic': c, 'true': c})
-        df.to_csv(self.path(save_path), index=False)
-        return df
+        self.predict = pd.read_csv('data/processed/predict.csv')
+        self.init_size = self.predict.shape[0]
 
     def __read_train(self, train_file: str):
         train = pd.read_csv(self.path(train_file)).sort_values('frequency', ascending=False)[
@@ -39,13 +24,16 @@ class ModelTraining():
                                               true=('true', 'unique')).reset_index()
 
     # There may be data preprocessing or it may be placed in a separate class
-    def __update_init_df(self, markup: pd.DataFrame):
+    def __update_predict_df(self, markup: pd.DataFrame):
         '''
         Созраняем размеченные данные в таблицу. Обновляем тренировчный набор.
         :param markup: Разметка полученная разметчиками или моделью.
         '''
-        self.init_df = pd.concat([self.init_df, markup], ignore_index=True)
-        self.init_df.to_csv(self.path('data/models/in_model.csv'))
+        self.predict = pd.concat([self.predict, markup], ignore_index=True)
+        self.predict.to_csv(self.path('data/models/in_model.csv'))
+
+    def __save_metrics(self, df, limit, batch_size, name):
+        df.to_csv(self.path(f'data/interim/{limit}_{batch_size}_{name}.csv'), index=False)
 
     @staticmethod
     def path(path):
@@ -55,18 +43,18 @@ class ModelTraining():
     def batch(self, batch_size: int) -> pd.DataFrame:
         batch = self.train[:batch_size]  # Получаем разметку и отправляем в размеченный набор данных
         self.train = self.train.drop(index=batch.index).reset_index(drop=True)
-        self.__update_init_df(batch.explode(['subtopic', 'true']))
+        self.__update_predict_df(batch.explode(['subtopic', 'true']))
         return batch
 
     def start(self, limit: float, batch_size: int, window: int = 3):
         if not self.classifier.start_model_status:
-            group_init = self.init_df.groupby(by='phrase').agg(
+            group_init = self.predict.groupby(by='phrase').agg(
                 subtopic=('subtopic', 'unique'),
                 true=('true', 'unique')).reset_index()
             self.classifier.add(group_init['phrase'].values, group_init['subtopic'].values)
 
         people, model = 0, 0
-        all_metrics, marked_metrics, marked_data = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+        all_metrics, model_metrics, model_df = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
         while self.train.shape[0]:
             if self.run_model:
                 # Размечаем набор данных моделью
@@ -76,8 +64,8 @@ class ModelTraining():
                                            'subtopic': all_predict[index_limit] if
                                            index_limit.shape[0] else [],
                                            'true': self.train.iloc[index_limit]['true']})
-                marked_data = pd.concat(
-                    [marked_data, predict_df.explode('subtopic').explode('true')],
+                model_df = pd.concat(
+                    [model_df, predict_df.explode('subtopic').explode('true')],
                     ignore_index=True)
 
                 # Оцениваем качество модели, если количество предсказанных объектов больше 10
@@ -86,11 +74,11 @@ class ModelTraining():
                                                       predict_df['subtopic'].values)
                     metrics[['model_from_val', 'model_from_all', 'people_from_val']] = \
                         index_limit.shape[0], model, people
-                    marked_metrics = pd.concat([marked_metrics, metrics])
-                    marked_metrics.iloc[-1:, :3] = marked_metrics.iloc[-window:, :3].agg('mean')
+                    model_metrics = pd.concat([model_metrics, metrics])
+                    model_metrics.iloc[-1:, :3] = model_metrics.iloc[-window:, :3].agg('mean')
 
                 self.train = self.train.drop(index=index_limit).reset_index(drop=True)
-                self.__update_init_df(predict_df.explode('subtopic').explode('true'))
+                self.__update_predict_df(predict_df.explode('subtopic').explode('true'))
 
             # Эмуляция разметки данных разметчиками
             batch = self.batch(batch_size=batch_size)
@@ -107,19 +95,16 @@ class ModelTraining():
                 self.run_model = True
 
             # Добавляем новые индексы в модель
-            group_init = self.init_df[self.init_size:].groupby(by='phrase').agg(
+            group_init = self.predict[self.init_size:].groupby(by='phrase').agg(
                 subtopic=('subtopic', 'unique'),
                 true=('true', 'unique')).reset_index()
             self.classifier.add(group_init['phrase'], group_init['subtopic'])
-            self.init_size = self.init_df.shape[0]  # Обновляем размер набора данных
+            self.init_size = self.predict.shape[0]  # Обновляем размер набора данных
             print(all_metrics.iloc[-1])
 
-        # Сохранение метрик
-        all_metrics.to_csv(self.path(f'data/models/{limit}_{batch_size}_all_metrics.csv'),
-                           index=False)
-        marked_metrics.to_csv(self.path(f'data/models/{limit}_{batch_size}_marked_metrics.csv'),
-                              index=False)
-        marked_data.to_csv(self.path(f'data/models/{limit}_{batch_size}_marked.csv'), index=False)
+        self.__save_metrics(all_metrics, limit, batch_size, 'all_metrics')
+        self.__save_metrics(model_metrics, limit, batch_size, 'model_metrics')
+        self.__save_metrics(model_df, limit, batch_size, 'model_df')
 
 
 if __name__ == '__main__':

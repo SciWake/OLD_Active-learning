@@ -20,13 +20,13 @@ class CreateModelData:
         '''
         subtopic_true - позволяет производить валидацию.
         :param path: Данные холодного старта.
-        :return: Инициализированный набор данных.
+        :return: Все классы, которые содежатся в доменной области.
         '''
         df = pd.read_csv(self.path(path))
         c = list(
             {i.strip().lower() for i in np.append(df['Тема'], df['Подтема']) if type(i) == str})
         df = pd.DataFrame({'phrase': c, 'subtopic': c, 'true': c})
-        df.to_csv(self.path('data/processed/predic.csv'), index=False)
+        df.to_csv(self.path('data/processed/predict.csv'), index=False)
         return c
 
     def join_train_data(self, full: str, synonyms: str):
