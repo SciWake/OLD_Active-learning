@@ -82,7 +82,6 @@ class Classifier:
         return np.array(predict_limit), np.array(all_predict, dtype='object')
 
     def metrics(self, y_true: np.array, y_pred: np.array, average: str = 'samples') -> pd.DataFrame:
-        # y_pred = [y_true[i] if y_true[i] in y_pred[i] else y_pred[i][0] for i in range(y_pred.shape[0])]
         classes = set()
         for i in range(y_true.shape[0]):
             classes = classes | set(y_true[i]) | set(y_pred[i])
