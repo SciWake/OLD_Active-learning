@@ -73,7 +73,7 @@ class Classifier:
         predict_limit, all_predict = [], []
         dis, ind = self.index.search(self.embeddings(x), k=10)
         for i in range(x.shape[0]):
-            if any(dis[i] <= 1 - limit):  # We save indexes where the model is not sure
+            if any(dis[i] <= 1 - limit):  # We save indexes where the models is not sure
                 predict_limit.append(i)
                 # Consider the weighted confidence of classes
                 all_predict.append(self.__get_top_classes(self.y[ind[i][dis[i] <= 1 - limit]]))

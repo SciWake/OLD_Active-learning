@@ -4,7 +4,7 @@ import numpy as np
 from time import time
 from pathlib import Path
 from src.data import ClearingPhrases
-from src.model import Classifier
+from src.models import Classifier
 
 
 class ModelTraining:
@@ -14,7 +14,7 @@ class ModelTraining:
         self.clearing = clearing
         self.classifier = classifier
         self.train = self.__read_train(train_file)
-        self.init_df = self.__init_data('data/input/parfjum_classifier.csv', 'data/model/in_model.csv')
+        self.init_df = self.__init_data('data/input/parfjum_classifier.csv', 'data/models/in_model.csv')
         self.init_size = self.init_df.shape[0]
 
     def __init_data(self, path: str, save_path: str) -> pd.DataFrame:
@@ -42,7 +42,7 @@ class ModelTraining:
         :param markup: Разметка полученная разметчиками или моделью.
         '''
         self.init_df = pd.concat([self.init_df, markup], ignore_index=True)
-        self.init_df.to_csv(self.path('data/model/in_model.csv'))
+        self.init_df.to_csv(self.path('data/models/in_model.csv'))
 
     @staticmethod
     def path(path):
@@ -107,16 +107,16 @@ class ModelTraining:
             print(all_metrics.iloc[-1])
 
         # Сохранение метрик
-        all_metrics.to_csv(self.path(f'data/model/{limit}_{batch_size}_all_metrics.csv'), index=False)
-        marked_metrics.to_csv(self.path(f'data/model/{limit}_{batch_size}_marked_metrics.csv'), index=False)
-        marked_data.to_csv(self.path(f'data/model/{limit}_{batch_size}_marked.csv'), index=False)
+        all_metrics.to_csv(self.path(f'data/models/{limit}_{batch_size}_all_metrics.csv'), index=False)
+        marked_metrics.to_csv(self.path(f'data/models/{limit}_{batch_size}_marked_metrics.csv'), index=False)
+        marked_data.to_csv(self.path(f'data/models/{limit}_{batch_size}_marked.csv'), index=False)
 
 
 if __name__ == '__main__':
     # full = pd.read_csv('data/input/Parfjum_full_list_to_markup.csv')
     # clearing = ClearingPhrases(full.words_ordered.values)
     # phrases = ClearingPhrases(full.words_ordered.values).get_best_texts
-    classifier = Classifier('model/adaptation/bucket.bin', 'model/classifier.pkl')  # 'cache/emb.pkl'
+    classifier = Classifier('models/adaptation/bucket.bin', 'models/classifier.pkl')  # 'cache/emb.pkl'
     system = ModelTraining('data/processed/perfumery_train.csv', classifier)
     t1 = time()
     system.start(limit=0.95, batch_size=250)
