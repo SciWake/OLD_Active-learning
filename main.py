@@ -3,18 +3,18 @@ import pandas as pd
 import numpy as np
 from time import time
 from pathlib import Path
-from src.data import ClearingPhrases
+from src.data import ClearingPhrases, CreateModelData
 from src.models import Classifier
 
 
-class ModelTraining:
+class ModelTraining():
     run_model = False
 
-    def __init__(self, train_file: str, classifier: Classifier, clearing: ClearingPhrases = None):
-        self.clearing = clearing
+    def __init__(self, classifier: Classifier, ):
         self.classifier = classifier
-        self.train = self.__read_train(train_file)
-        self.init_df = self.__init_data('data/input/parfjum_classifier.csv', 'data/models/in_model.csv')
+        self.train = self.__read_train('data/processed/train.csv')
+        self.init_df = self.__init_data('data/input/parfjum_classifier.csv',
+                                        'data/models/in_model.csv')
         self.init_size = self.init_df.shape[0]
 
     def __init_data(self, path: str, save_path: str) -> pd.DataFrame:
@@ -25,15 +25,18 @@ class ModelTraining:
         :return: Инициализированный набор данных.
         '''
         df = pd.read_csv(self.path(path))
-        c = list({i.strip().lower() for i in np.append(df['Тема'], df['Подтема']) if type(i) == str})
+        c = list(
+            {i.strip().lower() for i in np.append(df['Тема'], df['Подтема']) if type(i) == str})
         df = pd.DataFrame({'phrase': c, 'subtopic': c, 'true': c})
         df.to_csv(self.path(save_path), index=False)
         return df
 
     def __read_train(self, train_file: str):
-        train = pd.read_csv(self.path(train_file)).sort_values('frequency', ascending=False)[['phrase', 'subtopic']]
+        train = pd.read_csv(self.path(train_file)).sort_values('frequency', ascending=False)[
+            ['phrase', 'subtopic']]
         train['true'] = train['subtopic']
-        return train.groupby(by='phrase').agg(subtopic=('subtopic', 'unique'), true=('true', 'unique')).reset_index()
+        return train.groupby(by='phrase').agg(subtopic=('subtopic', 'unique'),
+                                              true=('true', 'unique')).reset_index()
 
     # There may be data preprocessing or it may be placed in a separate class
     def __update_init_df(self, markup: pd.DataFrame):
@@ -70,15 +73,19 @@ class ModelTraining:
                 index_limit, all_predict = self.classifier.predict(self.train['phrase'], limit)
                 model += index_limit.shape[0]
                 predict_df = pd.DataFrame({'phrase': self.train.iloc[index_limit].phrase,
-                                           'subtopic': all_predict[index_limit] if index_limit.shape[0] else [],
+                                           'subtopic': all_predict[index_limit] if
+                                           index_limit.shape[0] else [],
                                            'true': self.train.iloc[index_limit]['true']})
-                marked_data = pd.concat([marked_data, predict_df.explode('subtopic').explode('true')],
-                                        ignore_index=True)
+                marked_data = pd.concat(
+                    [marked_data, predict_df.explode('subtopic').explode('true')],
+                    ignore_index=True)
 
                 # Оцениваем качество модели, если количество предсказанных объектов больше 10
                 if index_limit.shape[0] > 10:
-                    metrics = self.classifier.metrics(predict_df['true'].values, predict_df['subtopic'].values)
-                    metrics[['model_from_val', 'model_from_all', 'people_from_val']] = index_limit.shape[0], model, people
+                    metrics = self.classifier.metrics(predict_df['true'].values,
+                                                      predict_df['subtopic'].values)
+                    metrics[['model_from_val', 'model_from_all', 'people_from_val']] = \
+                        index_limit.shape[0], model, people
                     marked_metrics = pd.concat([marked_metrics, metrics])
                     marked_metrics.iloc[-1:, :3] = marked_metrics.iloc[-window:, :3].agg('mean')
 
@@ -92,7 +99,8 @@ class ModelTraining:
             # Оцениваем качество модели по батчам
             index_limit, all_predict = self.classifier.predict(batch['phrase'], limit)
             metrics = self.classifier.metrics(batch['true'].values, all_predict)
-            metrics[['model_from_val', 'model_from_all', 'people_from_val']] = index_limit.shape[0], model, people
+            metrics[['model_from_val', 'model_from_all', 'people_from_val']] = index_limit.shape[
+                                                                                   0], model, people
             all_metrics = pd.concat([all_metrics, metrics])
             all_metrics.iloc[-1:, :3] = all_metrics.iloc[-window:, :3].agg('mean')
             if people >= 3500:
@@ -107,8 +115,10 @@ class ModelTraining:
             print(all_metrics.iloc[-1])
 
         # Сохранение метрик
-        all_metrics.to_csv(self.path(f'data/models/{limit}_{batch_size}_all_metrics.csv'), index=False)
-        marked_metrics.to_csv(self.path(f'data/models/{limit}_{batch_size}_marked_metrics.csv'), index=False)
+        all_metrics.to_csv(self.path(f'data/models/{limit}_{batch_size}_all_metrics.csv'),
+                           index=False)
+        marked_metrics.to_csv(self.path(f'data/models/{limit}_{batch_size}_marked_metrics.csv'),
+                              index=False)
         marked_data.to_csv(self.path(f'data/models/{limit}_{batch_size}_marked.csv'), index=False)
 
 
@@ -116,8 +126,9 @@ if __name__ == '__main__':
     # full = pd.read_csv('data/input/Parfjum_full_list_to_markup.csv')
     # clearing = ClearingPhrases(full.words_ordered.values)
     # phrases = ClearingPhrases(full.words_ordered.values).get_best_texts
-    classifier = Classifier('models/adaptation/bucket.bin', 'models/classifier.pkl')  # 'cache/emb.pkl'
-    system = ModelTraining('data/processed/perfumery_train.csv', classifier)
+    CreateModelData('data/raw/parfjum_classifier.csv').join_train_data(
+        'data/raw/Parfjum_full_list_to_markup.csv', 'data/raw/Parfjum_CL_Synonyms.csv')
+    system = ModelTraining(Classifier('models/adaptation/bucket.bin', 'models/classifier.pkl'))
     t1 = time()
     system.start(limit=0.95, batch_size=250)
     print(time() - t1)
