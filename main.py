@@ -30,7 +30,7 @@ class ModelTraining:
         :param markup: Разметка полученная разметчиками или моделью.
         '''
         self.predict = pd.concat([self.predict, markup], ignore_index=True)
-        self.predict.to_csv(self.path('data/processed/train.csv'))
+        self.predict.to_csv(self.path('data/processed/predict.csv'))
 
     def __save_metrics(self, df, limit, batch_size, name):
         df.to_csv(self.path(f'models/predicts/{limit}_{batch_size}_{name}.csv'), index=False)
