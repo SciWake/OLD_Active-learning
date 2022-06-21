@@ -6,6 +6,7 @@
 
 *.pkl
 
-models/
+models/adaptation
+models/pretrained
 
 /data/
