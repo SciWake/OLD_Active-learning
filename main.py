@@ -30,7 +30,7 @@ class ModelTraining:
         :param markup: Разметка полученная разметчиками или моделью.
         '''
         self.predict = pd.concat([self.predict, markup], ignore_index=True)
-        self.predict.to_csv(self.path('data/models/in_model.csv'))
+        self.predict.to_csv(self.path('data/processed/train.csv'))
 
     def __save_metrics(self, df, limit, batch_size, name):
         df.to_csv(self.path(f'models/predicts/{limit}_{batch_size}_{name}.csv'), index=False)
@@ -54,31 +54,29 @@ class ModelTraining:
             self.classifier.add(group_init['phrase'].values, group_init['subtopic'].values)
 
         people, model = 0, 0
-        all_metrics, model_metrics, model_df = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+        all_metrics, model_metrics, end_df = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
         while self.train.shape[0]:
             if self.run_model:
                 # Размечаем набор данных моделью
                 index_limit, all_predict = self.classifier.predict(self.train['phrase'], limit)
                 model += index_limit.shape[0]
-                predict_df = pd.DataFrame({'phrase': self.train.iloc[index_limit].phrase,
-                                           'subtopic': all_predict[index_limit] if
-                                           index_limit.shape[0] else [],
-                                           'true': self.train.iloc[index_limit]['true']})
-                model_df = pd.concat(
-                    [model_df, predict_df.explode('subtopic').explode('true')],
-                    ignore_index=True)
+                pred = pd.DataFrame({'phrase': self.train.iloc[index_limit].phrase,
+                                     'subtopic': all_predict[index_limit] if
+                                     index_limit.shape[0] else [],
+                                     'true': self.train.iloc[index_limit]['true']})
+                end_df = pd.concat([end_df, pred.explode('subtopic').explode('true')],
+                                   ignore_index=True)
 
                 # Оцениваем качество модели, если количество предсказанных объектов больше 10
                 if index_limit.shape[0] > 10:
-                    metrics = self.classifier.metrics(predict_df['true'].values,
-                                                      predict_df['subtopic'].values)
+                    metrics = self.classifier.metrics(pred['true'].values, pred['subtopic'].values)
                     metrics[['model_from_val', 'model_from_all', 'people_from_val']] = \
                         index_limit.shape[0], model, people
                     model_metrics = pd.concat([model_metrics, metrics])
                     model_metrics.iloc[-1:, :3] = model_metrics.iloc[-window:, :3].agg('mean')
 
                 self.train = self.train.drop(index=index_limit).reset_index(drop=True)
-                self.__update_predict_df(predict_df.explode('subtopic').explode('true'))
+                self.__update_predict_df(pred.explode('subtopic').explode('true'))
 
             # Эмуляция разметки данных разметчиками
             batch = self.batch(batch_size=batch_size)
@@ -104,7 +102,7 @@ class ModelTraining:
 
         self.__save_metrics(all_metrics, limit, batch_size, 'all_metrics')
         self.__save_metrics(model_metrics, limit, batch_size, 'model_metrics')
-        self.__save_metrics(model_df, limit, batch_size, 'model_df')
+        self.__save_metrics(end_df, limit, batch_size, 'end')
 
 
 if __name__ == '__main__':
