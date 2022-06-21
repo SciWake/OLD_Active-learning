@@ -67,11 +67,11 @@ class Classifier:
             unique = unique.union(set(subtopic))
             if len(unique) >= max_count:
                 break
-        return list(unique)[:5]
+        return list(unique)[:max_count]
 
     def predict(self, x: np.array, limit: float) -> tuple:
         predict_limit, all_predict = [], []
-        dis, ind = self.index.search(self.embeddings(x), k=10)
+        dis, ind = self.index.search(self.embeddings(x), k=20)
         for i in range(x.shape[0]):
             if any(dis[i] <= 1 - limit):  # We save indexes where the models is not sure
                 predict_limit.append(i)
@@ -81,7 +81,8 @@ class Classifier:
                 all_predict.append(self.__get_top_classes(self.y[ind[i]]))
         return np.array(predict_limit), np.array(all_predict, dtype='object')
 
-    def metrics(self, y_true: np.array, y_pred: np.array, average: str = 'samples') -> pd.DataFrame:
+    @staticmethod
+    def metrics(y_true: np.array, y_pred: np.array, average: str = 'samples') -> pd.DataFrame:
         classes = set()
         for i in range(y_true.shape[0]):
             classes = classes | set(y_true[i]) | set(y_pred[i])
