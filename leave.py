@@ -4,7 +4,7 @@ import numpy as np
 import faiss
 from time import time
 from pathlib import Path
-from src.model import Classifier
+from src.models import Classifier
 from sklearn.model_selection import LeaveOneOut
 
 
@@ -53,12 +53,12 @@ class Stratified:
             all_metrics = pd.concat([all_metrics, metrics], ignore_index=True)
 
         # Сохранение данных
-        all_metrics.to_csv(self.path(f'data/model/{limit}_all_metrics.csv'), index=False)
-        predicts.to_csv(self.path(f'data/model/{limit}_predicts.csv'), index=False)
+        all_metrics.to_csv(self.path(f'data/models/{limit}_all_metrics.csv'), index=False)
+        predicts.to_csv(self.path(f'data/models/{limit}_predicts.csv'), index=False)
 
 
 if __name__ == '__main__':
-    classifier = LeaveClassifier('model/adaptation/new_not_lem.bin', 'model/classifier.pkl')
+    classifier = LeaveClassifier('interim/adaptation/new_not_lem.bin', 'models/classifier.pkl')
     system = Stratified('data/processed/perfumery_train.csv', classifier)
     t1 = time()
     system.run(limit=0.9)
