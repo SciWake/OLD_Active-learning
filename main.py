@@ -33,7 +33,7 @@ class ModelTraining:
         self.predict.to_csv(self.path('data/models/in_model.csv'))
 
     def __save_metrics(self, df, limit, batch_size, name):
-        df.to_csv(self.path(f'data/interim/{limit}_{batch_size}_{name}.csv'), index=False)
+        df.to_csv(self.path(f'models/predicts/{limit}_{batch_size}_{name}.csv'), index=False)
 
     @staticmethod
     def path(path):

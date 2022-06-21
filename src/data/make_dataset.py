@@ -32,10 +32,10 @@ class CreateModelData:
     def join_train_data(self, full: str, synonyms: str):
         d = pd.read_csv(self.path(synonyms)).merge(pd.read_csv(self.path(full)), how="inner",
                                                    left_on='Synonyms', right_on='item')
-        d = d.loc[d.Result == 1, ['item', 'Topic', 'frequency']].rename(
-            columns={'item': 'phrase', 'Topic': 'subtopic'}).drop_duplicates('phrase')
+        d = d.loc[d.Result == 1, ['item', 'Topic', 'frequency']].rename(columns={'item': 'phrase',
+                                                                                 'Topic': 'subtopic'})
         d['subtopic'] = d.subtopic.apply(lambda x: x.strip().lower())
+        d = d.loc[d.subtopic.isin(self.classes)].drop_duplicates('phrase', ignore_index=True)
         # Удаление фраз вида: "avonтема"
-        d = d.loc[d.subtopic.isin(self.classes)].reset_index(drop=True)
         d.drop([i for i, p in enumerate(d.phrase) if re.compile("[A-z]+").findall(p)], inplace=True)
         d.to_csv('data/processed/train.csv', index=False)
