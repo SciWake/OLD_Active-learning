@@ -17,6 +17,11 @@ class ModelTraining:
         self.init_size = self.predict.shape[0]
 
     def __read_train(self, train_file: str):
+        """
+        Загрузка набора данных для снятия метрик.
+        :param train_file: Путь до файла.
+        :return: Агрегированный набор данных.
+        """
         train = pd.read_csv(self.path(train_file)).sort_values('frequency', ascending=False)[
             ['phrase', 'subtopic']]
         train['true'] = train['subtopic']

@@ -22,6 +22,11 @@ class Classifier:
     emb = {}
 
     def __init__(self, fasttext_model: str, faiss_path: str = None, embedding_path: str = None):
+        """
+        :param fasttext_model: Путь до модели fasttext.
+        :param faiss_path: Путь до сохранённых индексов faiss.
+        :param embedding_path: Путь до сохранённых вектороных представлений фраз.
+        """
         self.faiss_path = faiss_path
         self.model = fasttext.load_model(str(self.path(fasttext_model)))
         if embedding_path:
@@ -37,6 +42,11 @@ class Classifier:
         return Path(os.getcwd(), path)
 
     def embeddings(self, texts: list or np.array) -> np.array:
+        """
+        Построение векторынх представлений для фраз.
+        :param texts: Набор фраз.
+        :return: Набор векторов.
+        """
         emb = []
         for text in texts:
             text = text.replace('-', ' ').lower().strip()
@@ -46,6 +56,12 @@ class Classifier:
         return np.array(emb, dtype='float32')
 
     def add(self, x: np.array, y: np.array):
+        """
+        Добавление фраз в индекс и сохранение текущего состояния модели.
+        :param x: Набор фраз.
+        :param y: Набор категорий.
+        :return: self.
+        """
         if not self.y.shape[0]:
             self.index = faiss.IndexFlat(self.vec_size)
         self.index.add(self.embeddings(x))
@@ -70,6 +86,14 @@ class Classifier:
         return list(unique)[:max_count]
 
     def predict(self, x: np.array, limit: float) -> tuple:
+        """
+        Предсказание категории для фразы.
+        :param x: Набор фраз.
+        :param limit: Допустимая дистанция.
+        :return: Словарь из двух элементов (predict_limit, all_predict),
+        где predict_limit - это индексы объектов, которые прдесказаны по дистанции,
+        all_predict - масиив, который для фразы содержит список катеогрий.
+        """
         predict_limit, all_predict = [], []
         dis, ind = self.index.search(self.embeddings(x), k=20)
         for i in range(x.shape[0]):
