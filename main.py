@@ -116,7 +116,7 @@ if __name__ == '__main__':
     # phrases = ClearingPhrases(full.words_ordered.values).get_best_texts
     CreateModelData('data/raw/parfjum_classifier.csv').join_train_data(
         'data/raw/Parfjum_full_list_to_markup.csv', 'data/raw/Parfjum_CL_Synonyms.csv')
-    system = ModelTraining(Classifier('models/adaptation/bucket.bin', 'models/classifier.pkl'))
+    system = ModelTraining(Classifier('models/adaptation/bucket.bin'))  # 'models/classifier.pkl'
     t1 = time()
     system.start(limit=0.95, batch_size=250)
     print(time() - t1)

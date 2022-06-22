@@ -24,11 +24,10 @@ class Classifier:
 
     def __init__(self, model: str, faiss_path: str = None, embedding_path: str = None):
         """
-        :param model: Путь до модели fasttext.
+        :param model: Путь до модели построения эмбэдингов.
         :param faiss_path: Путь до сохранённых индексов faiss.
         :param embedding_path: Путь до сохранённых вектороных представлений фраз.
         """
-        self.faiss_path = faiss_path
         self.model = SentenceTransformer(str(self.path(model)))
         if faiss_path:
             with open(self.path(faiss_path), 'rb') as f:
@@ -70,7 +69,7 @@ class Classifier:
         if not self.start_model_status:
             self.index.add(self.embeddings(x))
             self.y = np.append(self.y, y)
-            with open(self.path(self.faiss_path), 'wb') as f:
+            with open(self.path('models/cache/faiss.pkl'), 'wb') as f:
                 pickle.dump((self.index, self.y), f)
             return self
 
