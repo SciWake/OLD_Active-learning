@@ -7,6 +7,7 @@ import pandas as pd
 from pathlib import Path
 from sklearn.preprocessing import MultiLabelBinarizer, normalize
 from sklearn.metrics import precision_score, recall_score, f1_score
+from sentence_transformers import SentenceTransformer
 
 
 # Add a logger
@@ -17,18 +18,18 @@ class PredictError(Exception):
 
 class Classifier:
     start_model_status = 0
-    vec_size = 300
+    vec_size = 384
     y = np.array([])
     emb = {}
 
-    def __init__(self, fasttext_model: str, faiss_path: str = None, embedding_path: str = None):
+    def __init__(self, model: str, faiss_path: str = None, embedding_path: str = None):
         """
-        :param fasttext_model: Путь до модели fasttext.
+        :param model: Путь до модели fasttext.
         :param faiss_path: Путь до сохранённых индексов faiss.
         :param embedding_path: Путь до сохранённых вектороных представлений фраз.
         """
         self.faiss_path = faiss_path
-        self.model = fasttext.load_model(str(self.path(fasttext_model)))
+        self.model = SentenceTransformer(str(self.path(model)))
         if faiss_path:
             with open(self.path(faiss_path), 'rb') as f:
                 self.index, self.y = pickle.load(f)
@@ -51,8 +52,10 @@ class Classifier:
         for text in texts:
             text = text.replace('-', ' ').lower().strip()
             if not self.emb.get(text, np.array([])).shape[0]:
-                self.emb[text] = normalize([self.model.get_sentence_vector(text)])[0]
+                self.emb[text] = normalize([self.model.encode(text)])[0]
             emb.append(self.emb.get(text))
+        with open(self.path('models/cache/emb.pkl'), 'wb') as f:
+            pickle.dump(self.emb, f)
         return np.array(emb, dtype='float32')
 
     def add(self, x: np.array, y: np.array):
