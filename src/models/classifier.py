@@ -67,11 +67,12 @@ class Classifier:
         """
         if not self.y.shape[0]:
             self.index = faiss.IndexFlat(self.vec_size)
-        self.index.add(self.embeddings(x))
-        self.y = np.append(self.y, y)
-        with open(self.path(self.faiss_path), 'wb') as f:
-            pickle.dump((self.index, self.y), f)
-        return self
+        if not self.start_model_status:
+            self.index.add(self.embeddings(x))
+            self.y = np.append(self.y, y)
+            with open(self.path(self.faiss_path), 'wb') as f:
+                pickle.dump((self.index, self.y), f)
+            return self
 
     @staticmethod
     def __get_top_classes(classes: np.array, max_count: int = 5) -> list:
@@ -119,8 +120,8 @@ class Classifier:
         y_true = mlb.fit_transform(y_true)
         y_pred = mlb.transform(y_pred)
         return pd.DataFrame({
-            'f1': [f1_score(y_pred=y_true, y_true=y_pred, average=average)],
-            'precision': [precision_score(y_pred=y_true, y_true=y_pred, average=average, zero_division=1)],
-            'recall': [recall_score(y_pred=y_true, y_true=y_pred, average=average, zero_division=0)],
+            'f1': [f1_score(y_pred, y_true, average=average)],
+            'precision': [precision_score(y_pred, y_true, average=average, zero_division=1)],
+            'recall': [recall_score(y_pred, y_true, average=average, zero_division=0)],
             'validation_size': [y_true.shape[0]]
         })
