@@ -29,7 +29,7 @@ class Classifier:
         """
         self.faiss_path = faiss_path
         self.model = fasttext.load_model(str(self.path(fasttext_model)))
-        if embedding_path:
+        if faiss_path:
             with open(self.path(faiss_path), 'rb') as f:
                 self.index, self.y = pickle.load(f)
                 self.start_model_status = 1
