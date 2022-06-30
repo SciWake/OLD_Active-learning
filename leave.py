@@ -9,8 +9,8 @@ from sklearn.model_selection import LeaveOneOut
 
 
 class LeaveClassifier(Classifier):
-    def __init__(self, fasttext_model: str, faiss_path: str):
-        super(LeaveClassifier, self).__init__(fasttext_model, faiss_path)
+    def __init__(self, model: str, faiss_path: str):
+        super(LeaveClassifier, self).__init__(model, faiss_path)
 
     def add(self, x: np.array, y: np.array):
         self.index = faiss.IndexFlat(300)

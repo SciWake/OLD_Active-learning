@@ -18,7 +18,7 @@ class PredictError(Exception):
 
 class Classifier:
     start_model_status = 0
-    vec_size = 384
+    vec_size = 300
     y = np.array([])
     emb = {}
 
@@ -28,7 +28,7 @@ class Classifier:
         :param faiss_path: Путь до сохранённых индексов faiss.
         :param embedding_path: Путь до сохранённых вектороных представлений фраз.
         """
-        self.model = SentenceTransformer(str(self.path(model)))
+        self.model = fasttext.load_model(str(self.path(model)))
         if faiss_path:
             with open(self.path(faiss_path), 'rb') as f:
                 self.index, self.y = pickle.load(f)
@@ -51,7 +51,7 @@ class Classifier:
         for text in texts:
             text = text.replace('-', ' ').lower().strip()
             if not self.emb.get(text, np.array([])).shape[0]:
-                self.emb[text] = normalize([self.model.encode(text)])[0]
+                self.emb[text] = normalize([self.model.get_sentence_vector(text)])[0]
             emb.append(self.emb.get(text))
         with open(self.path('models/cache/emb.pkl'), 'wb') as f:
             pickle.dump(self.emb, f)
@@ -74,7 +74,7 @@ class Classifier:
             return self
 
     @staticmethod
-    def __get_top_classes(classes: np.array, max_count: int = 5) -> list:
+    def __get_top_classes(classes: np.array, max_count: int = 10) -> list:
         '''
         Возвращает n-e количество предсказанных классов моделью.
         :param classes: Классы из которых небходимо выбрать топ n.
@@ -98,19 +98,26 @@ class Classifier:
         all_predict - масиив, который для фразы содержит список катеогрий.
         """
         predict_limit, all_predict = [], []
-        dis, ind = self.index.search(self.embeddings(x), k=20)
+        dis, ind = self.index.search(self.embeddings(x), k=25)
         for i in range(x.shape[0]):
             if any(dis[i] <= 1 - limit):  # We save indexes where the models is not sure
                 predict_limit.append(i)
                 # Consider the weighted confidence of classes
                 all_predict.append(self.__get_top_classes(self.y[ind[i][dis[i] <= 1 - limit]]))
-            else:  # Выбор топ 5 топиков
+            else:
                 all_predict.append(self.__get_top_classes(self.y[ind[i]]))
         return np.array(predict_limit), np.array(all_predict, dtype='object')
 
     @staticmethod
     def metrics(y_true: np.array, y_pred: np.array, average: str = 'samples') -> pd.DataFrame:
-        classes = set()
+        """
+        Метод выполняет подсчёт метрик.
+        :param y_true: Истинное значение целевой переменной.
+        :param y_pred: Предсказанное значение целевой переменной.
+        :param average: Метод подсчёта метрик.
+        :return: Результаты метрик в формате pd.DataFrame.
+        """
+        classes = set()  # Отбор уникальных классов
         for i in range(y_true.shape[0]):
             classes = classes | set(y_true[i]) | set(y_pred[i])
         average = 'weighted' if len(classes) == 1 else average

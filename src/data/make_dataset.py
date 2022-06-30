@@ -8,6 +8,8 @@ from pathlib import Path
 class CreateModelData:
     def __init__(self, domain: str):
         """
+        Класс позволяет создать данные для обучения классификатора и
+        провести владиацию качества модели.
         :param domain: Путь до файла доменной области.
         """
         self.classes = self.__init_predict(domain)
@@ -24,25 +26,35 @@ class CreateModelData:
         :param path: Категории доменной области.
         :return: Уникальные классы второго и третьего уровня, которые содежатся в доменной области.
         """
-        df = pd.read_csv(self.path(path))
-        c = list(
-            {i.strip().lower() for i in np.append(df['Тема'], df['Подтема']) if type(i) == str})
-        df = pd.DataFrame({'phrase': c, 'subtopic': c, 'true': c})
-        df.to_csv(self.path('data/processed/predict.csv'), index=False)
+        d = pd.read_csv(self.path(path))
+        c = list({i.strip().lower() for i in np.append(d['Тема'], d['Подтема']) if type(i) == str})
+        d = pd.DataFrame({'phrase': c, 'subtopic': c, 'true': c})
+        d.to_csv(self.path('data/processed/predict.csv'), index=False)
         return c
 
-    def join_train_data(self, full: str, synonyms: str):
+    def __processing(self, d: pd.DataFrame) -> pd.DataFrame:
+        """
+        Метод преобразует данные к формату, который используется для обучения
+        классификатора.
+        :param d: Набор данных после операции merge.
+        :return: Обработанные данные.
+        """
+        d['subtopic'] = d.subtopic.apply(lambda x: str(x).strip().lower())
+        d = d.loc[d.subtopic.isin(self.classes)].drop_duplicates('phrase', ignore_index=True)
+        # Удаление фраз вида: "avonтема"
+        return d.drop([i for i, p in enumerate(d.phrase) if re.compile("[A-z]+").findall(p)])
+
+    def join_train_data(self, synonyms: str, full: str, left_on: str = 'Synonyms',
+                        right_on: str = 'item'):
         """
         Соеденение размеченных наборов данных в один.
+        :param left_on: Левая колонка для операции merge.
+        :param right_on: Правая колонка для операции merge.
         :param full: Полный набор данных.
         :param synonyms: Размеченный набор данных.
         """
-        d = pd.read_csv(self.path(synonyms)).merge(pd.read_csv(self.path(full)), how="inner",
-                                                   left_on='Synonyms', right_on='item')
-        d = d.loc[d.Result == 1, ['item', 'Topic', 'frequency']].rename(columns={'item': 'phrase',
-                                                                                 'Topic': 'subtopic'})
-        d['subtopic'] = d.subtopic.apply(lambda x: x.strip().lower())
-        d = d.loc[d.subtopic.isin(self.classes)].drop_duplicates('phrase', ignore_index=True)
-        # Удаление фраз вида: "avonтема"
-        d.drop([i for i, p in enumerate(d.phrase) if re.compile("[A-z]+").findall(p)], inplace=True)
-        d.to_csv('data/processed/train.csv', index=False)
+        d = pd.read_csv(self.path(synonyms)).merge(pd.read_csv(self.path(full)), right_on=right_on,
+                                                   left_on=left_on, how="inner")
+        d = d.loc[d.Result == 1, ['item', 'Topic', 'frequency']].rename(
+            columns={'item': 'phrase', 'Topic': 'subtopic'})
+        self.__processing(d).to_csv('data/processed/train.csv', index=False)
