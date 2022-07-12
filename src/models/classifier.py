@@ -70,7 +70,7 @@ class Classifier:
             self.y = np.append(self.y, y).reshape(-1, 1)
             with open(self.path('models/cache/faiss.pkl'), 'wb') as f:
                 pickle.dump((self.index, self.y), f)
-            return self
+        return self
 
     @staticmethod
     def __get_top_classes(classes: np.array, max_count: int = 10) -> list:
