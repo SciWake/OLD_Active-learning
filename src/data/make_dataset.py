@@ -29,7 +29,7 @@ class CreateModelData:
         d = pd.read_csv(self.path(path))
         c = list({i.strip().lower() for i in np.append(d['Тема'], d['Подтема']) if type(i) == str})
         d = pd.DataFrame({'phrase': c, 'subtopic': c, 'true': c})
-        d.to_csv(self.path('data/processed/predict.csv'), index=False)
+        d.to_csv(self.path('data/processed/model-output.csv'), index=False)
         return c
 
     def __processing(self, d: pd.DataFrame) -> pd.DataFrame:
@@ -57,4 +57,4 @@ class CreateModelData:
                                                    left_on=left_on, how="inner")
         d = d.loc[d.Result == 1, ['item', 'Topic', 'frequency']].rename(
             columns={'item': 'phrase', 'Topic': 'subtopic'})
-        self.__processing(d).to_csv('data/processed/train.csv', index=False)
+        self.__processing(d).to_csv('data/processed/marked-up-join.csv', index=False)
