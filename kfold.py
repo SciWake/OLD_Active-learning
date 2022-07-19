@@ -14,6 +14,14 @@ class KFoldClassifier(Classifier):
         super(KFoldClassifier, self).__init__(model, faiss_path)
 
     def add(self, x: np.array, y: np.array):
+        """
+        Добавление фраз в индекс и сохранение текущего состояния модели.
+        Переопределение метода позволяет обнулить список элементов в классификаторе.
+        :param x: Набор фраз.
+        :param y: Набор категорий.
+        :return: self.
+        """
+        self.y = np.array([])  # Обнуляем список ответов
         self.index = faiss.IndexFlat(300)
         self.index.add(self.embeddings(x))
         self.y = np.append(self.y, y)
