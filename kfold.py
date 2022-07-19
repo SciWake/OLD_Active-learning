@@ -1,11 +1,12 @@
 import os
+import faiss
 import pandas as pd
 import numpy as np
-import faiss
 from time import time
 from pathlib import Path
 from src.models import Classifier
 from sklearn.model_selection import KFold
+from src.data import CreateModelData
 
 
 class KFoldClassifier(Classifier):
@@ -15,7 +16,7 @@ class KFoldClassifier(Classifier):
     def add(self, x: np.array, y: np.array):
         self.index = faiss.IndexFlat(300)
         self.index.add(self.embeddings(x))
-        self.y = np.append(self.y, y).reshape(-1, 1)
+        self.y = np.append(self.y, y)
         return self
 
 
@@ -35,8 +36,8 @@ class Stratified:
     def path(path):
         return Path(os.getcwd(), path)
 
-    def run(self, limit: float):
-        kf = KFold(n_splits=2, shuffle=True, random_state=42)
+    def run(self, limit: float, n_splits: int = 100):
+        kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
         predicts, all_metrics = pd.DataFrame(), pd.DataFrame()
 
         for train_ind, test_ind in kf.split(self.train):
@@ -49,7 +50,7 @@ class Stratified:
             predict = pd.DataFrame(
                 {'phrase': test.phrase, 'subtopic': all_predict.tolist(), 'true': test['true']})
             metrics = self.classifier.metrics(test['true'].values, all_predict)
-            metrics['phrase'] = test.phrase.values
+            print(metrics)
 
             # Объединение данных
             predicts = pd.concat([predicts, predict.explode('subtopic').explode('true')],
@@ -57,13 +58,16 @@ class Stratified:
             all_metrics = pd.concat([all_metrics, metrics], ignore_index=True)
 
         # Сохранение данных
-        all_metrics.to_csv(self.path(f'data/models/{limit}_all_metrics.csv'), index=False)
-        predicts.to_csv(self.path(f'data/models/{limit}_predicts.csv'), index=False)
+        all_metrics.to_csv(self.path(f'data/{limit}_all_metrics.csv'), index=False)
+        predicts.to_csv(self.path(f'data/{limit}_predicts.csv'), index=False)
 
 
 if __name__ == '__main__':
-    classifier = KFoldClassifier('interim/adaptation/new_not_lem.bin')
-    system = Stratified('data/processed/perfumery_train.csv', classifier)
+    preproc = CreateModelData('data/raw/Apteki/Domain.csv')
+    preproc.join_train_data('data/raw/Apteki/Lemmas.csv', 'data/raw/Apteki/Full.csv',
+                            left_on='Lemma', right_on='item')
+    clas = KFoldClassifier('models/adaptation/apteki_0_67_10_perfume-adaptive.bin')
+    system = Stratified('data/processed/marked-up-join.csv', clas)
     t1 = time()
-    system.run(limit=0.9)
+    system.run(limit=1)
     print(time() - t1)
