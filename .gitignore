@@ -10,3 +10,5 @@ models/adaptation
 models/pretrained
 
 /data/
+
+notebooks/catboost_info/

@@ -67,7 +67,7 @@ class Classifier:
             self.index = faiss.IndexFlat(self.vec_size)
         if not self.start_model_status:
             self.index.add(self.embeddings(x))
-            self.y = np.append(self.y, y).reshape(-1, 1)
+            self.y = np.append(self.y, y)
             with open(self.path('models/cache/faiss.pkl'), 'wb') as f:
                 pickle.dump((self.index, self.y), f)
         return self

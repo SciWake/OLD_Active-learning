@@ -94,7 +94,7 @@ class ModelTraining:
             people += batch.shape[0]
 
             # Оцениваем качество модели по батчам
-            index_limit, all_predict = self.classifier.predict(batch['phrase'], limit)
+            index_limit, all_predict = self.classifier.predict(batch['phrase'].values, limit)
             metrics = self.classifier.metrics(batch['true'].values, all_predict)
             metrics[['model_from_val', 'model_from_all', 'people_from_val']] = index_limit.shape[
                                                                                    0], model, people
