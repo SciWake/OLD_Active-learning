@@ -79,9 +79,10 @@ class ModelTraining:
                         index_limit.shape[0], model, people
                     model_metrics = pd.concat([model_metrics, metrics])
                     model_metrics.iloc[-1:, :3] = model_metrics.iloc[-window:, :3].agg('mean')
-                # self.train = self.__drop_full_from_train(self.train, pred)
-                # self.full = self.full.drop(index=index_limit).reset_index(drop=True)
+
+                self.train = self.train.drop(index=index_limit).reset_index(drop=True)
                 # self.__update_predict_df(pred.explode('subtopic').explode('true'))
+                # self.train = self.__drop_full_from_train(self.train, pred)
 
             # Эмуляция разметки данных разметчиками
             batch = self.batch(batch_size=batch_size)
@@ -90,8 +91,8 @@ class ModelTraining:
             # Оцениваем качество модели по батчам
             index_limit, all_predict = self.classifier.predict(batch['phrase'].values, limit)
             metrics = self.classifier.metrics(batch['true'].values, all_predict)
-            metrics[['model_from_val', 'model_from_all', 'people_from_val']] = index_limit.shape[
-                                                                                   0], model, people
+            metrics[['model_from_val', 'model_from_all', 'people_from_val']] = \
+                index_limit.shape[0], model, people
             all_metrics = pd.concat([all_metrics, metrics])
             all_metrics.iloc[-1:, :3] = all_metrics.iloc[-window:, :3].agg('mean')
             if people >= 3000:
@@ -111,9 +112,8 @@ class ModelTraining:
 
 
 if __name__ == '__main__':
-    preproc = CreateModelData('data/raw/Decorative/Domain.csv')
-    preproc.join_train_data('data/raw/Decorative/Synonyms_test.csv',
-                            'data/raw/Decorative/Full_test.csv')
+    preproc = CreateModelData('data/raw/Parfjum/Domain.csv')
+    preproc.join_train_data('data/raw/Parfjum/Synonyms.csv', 'data/raw/Parfjum/Full.csv')
     print('Формирование данных завершено')
     system = ModelTraining(Classifier('models/adaptation/decorative_0_96_1_perfumery-adaptive.bin'))
     t1 = time()
