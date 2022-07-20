@@ -65,10 +65,12 @@ class ModelTraining:
                 # Размечаем набор данных моделью
                 index_limit, all_predict = self.classifier.predict(self.train['phrase'], limit)
                 model += index_limit.shape[0]
-                pred = pd.DataFrame({'phrase': self.train.iloc[index_limit].item,
+                pred = pd.DataFrame({'phrase': self.train.iloc[index_limit]['phrase'],
                                      'subtopic': all_predict[index_limit] if
-                                     index_limit.shape[0] else []})
-                model_df = pd.concat([model_df, pred.explode('subtopic')], ignore_index=True)
+                                     index_limit.shape[0] else [],
+                                     'true': self.train.iloc[index_limit]['true']})
+                model_df = pd.concat([model_df, pred.explode('subtopic').explode('true')],
+                                     ignore_index=True)
 
                 # Оцениваем качество модели, если количество предсказанных объектов больше 10
                 if index_limit.shape[0] > 10:
