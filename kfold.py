@@ -44,7 +44,7 @@ class Stratified:
     def path(path):
         return Path(os.getcwd(), path)
 
-    def run(self, limit: float, n_splits: int = 100):
+    def run(self, limit: float, n_splits: int = 4):
         kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
         predicts, all_metrics = pd.DataFrame(), pd.DataFrame()
 
@@ -57,7 +57,8 @@ class Stratified:
             index_limit, all_predict = self.classifier.predict(test['phrase'].values, limit)
             predict = pd.DataFrame(
                 {'phrase': test.phrase, 'subtopic': all_predict.tolist(), 'true': test['true']})
-            metrics = self.classifier.metrics(test['true'].values, all_predict)
+            metrics = self.classifier.metrics(test['true'].iloc[index_limit].values,
+                                              all_predict[index_limit])
             print(metrics)
 
             # Объединение данных
@@ -77,5 +78,5 @@ if __name__ == '__main__':
     clas = KFoldClassifier('models/adaptation/apteki_0_67_10_perfume-adaptive.bin')
     system = Stratified('data/processed/marked-up-join.csv', clas)
     t1 = time()
-    system.run(limit=1)
+    system.run(limit=0.30)
     print(time() - t1)

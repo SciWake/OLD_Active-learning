@@ -16,8 +16,6 @@ class ModelTraining:
         self.init_df = pd.read_csv('data/processed/init_df.csv')
         self.init_size = self.init_df.shape[0]
 
-        self.full = pd.read_csv('data/raw/Decorative/Full_test.csv')
-
     def __read_train(self, train_file: str):
         """
         Загрузка набора данных для снятия метрик.
@@ -38,12 +36,6 @@ class ModelTraining:
         '''
         self.init_df = pd.concat([self.init_df, markup], ignore_index=True)
         self.init_df.to_csv(self.path('data/processed/init_df.csv'))
-
-    @staticmethod
-    def __drop_full_from_train(train, df_drop):
-        train.reset_index(inplace=True)
-        drop = df_drop.merge(train, left_on='phrase', right_on='phrase')['index'].values
-        return train.set_index('index').drop(index=drop)
 
     def __save_metrics(self, df, limit, batch_size, name):
         df.to_csv(self.path(f'models/predicts/{limit}_{batch_size}_{name}.csv'), index=False)
@@ -71,22 +63,22 @@ class ModelTraining:
         while self.train.shape[0]:
             if self.run_model:
                 # Размечаем набор данных моделью
-                index_limit, all_predict = self.classifier.predict(self.full['item'], limit)
+                index_limit, all_predict = self.classifier.predict(self.train['phrase'], limit)
                 model += index_limit.shape[0]
-                pred = pd.DataFrame({'phrase': self.full.iloc[index_limit].item,
+                pred = pd.DataFrame({'phrase': self.train.iloc[index_limit].item,
                                      'subtopic': all_predict[index_limit] if
                                      index_limit.shape[0] else []})
                 model_df = pd.concat([model_df, pred.explode('subtopic')], ignore_index=True)
 
                 # Оцениваем качество модели, если количество предсказанных объектов больше 10
-                # if index_limit.shape[0] > 10:
-                #     metrics = self.clas.metrics(pred['true'].values, pred['subtopic'].values)
-                #     metrics[['model_from_val', 'model_from_all', 'people_from_val']] = \
-                #         index_limit.shape[0], model, people
-                #     model_metrics = pd.concat([model_metrics, metrics])
-                #     model_metrics.iloc[-1:, :3] = model_metrics.iloc[-window:, :3].agg('mean')
-                self.train = self.__drop_full_from_train(self.train, pred)
-                self.full = self.full.drop(index=index_limit).reset_index(drop=True)
+                if index_limit.shape[0] > 10:
+                    metrics = self.classifier.metrics(pred['true'].values, pred['subtopic'].values)
+                    metrics[['model_from_val', 'model_from_all', 'people_from_val']] = \
+                        index_limit.shape[0], model, people
+                    model_metrics = pd.concat([model_metrics, metrics])
+                    model_metrics.iloc[-1:, :3] = model_metrics.iloc[-window:, :3].agg('mean')
+                # self.train = self.__drop_full_from_train(self.train, pred)
+                # self.full = self.full.drop(index=index_limit).reset_index(drop=True)
                 # self.__update_predict_df(pred.explode('subtopic').explode('true'))
 
             # Эмуляция разметки данных разметчиками
@@ -117,11 +109,9 @@ class ModelTraining:
 
 
 if __name__ == '__main__':
-    # full = pd.read_csv('data/input/Parfjum_full_list_to_markup.csv')
-    # clearing = ClearingPhrases(full.words_ordered.values)
-    # phrases = ClearingPhrases(full.words_ordered.values).get_best_texts
     preproc = CreateModelData('data/raw/Decorative/Domain.csv')
-    preproc.join_train_data('data/raw/Decorative/Synonyms_test.csv', 'data/raw/Decorative/Full_test.csv')
+    preproc.join_train_data('data/raw/Decorative/Synonyms_test.csv',
+                            'data/raw/Decorative/Full_test.csv')
     print('Формирование данных завершено')
     system = ModelTraining(Classifier('models/adaptation/decorative_0_96_1_perfumery-adaptive.bin'))
     t1 = time()
