@@ -13,8 +13,8 @@ class ModelTraining:
     def __init__(self, classifier: Classifier):
         self.classifier = classifier
         self.train = self.__read_train('data/processed/marked-up-join.csv')
-        self.model_all_df = pd.read_csv('data/processed/model-output.csv')
-        self.init_size = self.model_all_df.shape[0]
+        self.init_df = pd.read_csv('data/processed/init_df.csv')
+        self.init_size = self.init_df.shape[0]
 
         self.full = pd.read_csv('data/raw/Decorative/Full_test.csv')
 
@@ -36,8 +36,8 @@ class ModelTraining:
         Созраняем размеченные данные в таблицу. Обновляем тренировчный набор.
         :param markup: Разметка полученная разметчиками или моделью.
         '''
-        self.model_all_df = pd.concat([self.model_all_df, markup], ignore_index=True)
-        self.model_all_df.to_csv(self.path('data/processed/model-output.csv'))
+        self.init_df = pd.concat([self.init_df, markup], ignore_index=True)
+        self.init_df.to_csv(self.path('data/processed/init_df.csv'))
 
     @staticmethod
     def __drop_full_from_train(train, df_drop):
@@ -60,14 +60,14 @@ class ModelTraining:
         return batch
 
     def start(self, limit: float, batch_size: int, window: int = 3):
-        if not self.classifier.start_model_status:
-            group_init = self.model_all_df.groupby(by='phrase').agg(
+        if not self.classifier.start_model_status:  # Если модель пустая - добавляем данные
+            group_all_df = self.init_df.groupby(by='phrase').agg(
                 subtopic=('subtopic', 'unique'),
                 true=('true', 'unique')).reset_index()
-            self.classifier.add(group_init['phrase'].values, group_init['subtopic'].values)
+            self.classifier.add(group_all_df['phrase'].values, group_all_df['subtopic'].values)
 
         people, model = 0, 0
-        all_metrics, model_metrics, end_df = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+        all_metrics, model_metrics, model_df = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
         while self.train.shape[0]:
             if self.run_model:
                 # Размечаем набор данных моделью
@@ -76,7 +76,7 @@ class ModelTraining:
                 pred = pd.DataFrame({'phrase': self.full.iloc[index_limit].item,
                                      'subtopic': all_predict[index_limit] if
                                      index_limit.shape[0] else []})
-                end_df = pd.concat([end_df, pred.explode('subtopic')], ignore_index=True)
+                model_df = pd.concat([model_df, pred.explode('subtopic')], ignore_index=True)
 
                 # Оцениваем качество модели, если количество предсказанных объектов больше 10
                 # if index_limit.shape[0] > 10:
@@ -104,16 +104,16 @@ class ModelTraining:
                 self.run_model = True
 
             # Добавляем новые индексы в модель
-            group_init = self.model_all_df[self.init_size:].groupby(by='phrase').agg(
+            group_all_df = self.init_df[self.init_size:].groupby(by='phrase').agg(
                 subtopic=('subtopic', 'unique'),
                 true=('true', 'unique')).reset_index()
-            self.classifier.add(group_init['phrase'], group_init['subtopic'])
-            self.init_size = self.model_all_df.shape[0]  # Обновляем размер набора данных
+            self.classifier.add(group_all_df['phrase'], group_all_df['subtopic'])
+            self.init_size = self.init_df.shape[0]  # Обновляем размер набора данных
             print(all_metrics.iloc[-1])
 
         self.__save_metrics(all_metrics, limit, batch_size, 'all_metrics')
         self.__save_metrics(model_metrics, limit, batch_size, 'model_metrics')
-        self.__save_metrics(end_df, limit, batch_size, 'end')
+        self.__save_metrics(model_df, limit, batch_size, 'model_data')
 
 
 if __name__ == '__main__':
