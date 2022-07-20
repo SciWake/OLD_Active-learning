@@ -1,4 +1,39 @@
-The directory structure of your new project looks like this: 
+<h3> Для запуска перейдите в файл: `main.py`</h3>
+
+1. Укажите путь до классификатора доменной области:
+
+```
+preproc = CreateModelData('data/raw/Parfjum/Domain.csv')
+```
+
+2. Укажите файлы для получения тренировочного набора:
+
+```
+preproc.join_train_data('data/raw/Parfjum/Synonyms.csv', 'data/raw/Parfjum/Full.csv')
+```
+
+3. Передайте путь до модели и все необходимые настройки
+
+```
+system = ModelTraining(Classifier('models/adaptation/decorative_0_96_1_perfumery-adaptive.bin'))
+system.start(limit=0.97, batch_size=500)
+```
+
+<h3>Данные на выходе</h3>
+
+`models/predicts/all_metrics.csv` - Метрики как рекомендательной системы.
+
+`models/predicts/model_data.csv` - Размеченные данные.
+
+`models/predicts/model_metrics.csv` - Метрики как инструмента разметки.
+
+<h3>Промежуточные данные модели:</h3>
+
+`models/cache/emb.pkl` - Файл эмбэдингов для конкретного набора данных.
+
+`models/cache/faiss.pkl` - Файл сохранённой модели.
+
+<h3>The directory structure of your new project looks like this:</h3>
 
 ```
 ├── LICENSE
