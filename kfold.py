@@ -31,7 +31,7 @@ class KFoldClassifier(Classifier):
 class Stratified:
     def __init__(self, train_file: str, classifier: Classifier):
         self.classifier = classifier
-        self.train = self.__read_train(train_file)
+        self.train = self.__read_train(train_file)[:3000]
 
     def __read_train(self, train_file: str):
         train = pd.read_csv(self.path(train_file)).sort_values('frequency', ascending=False)[
@@ -44,7 +44,7 @@ class Stratified:
     def path(path):
         return Path(os.getcwd(), path)
 
-    def run(self, limit: float, n_splits: int = 4):
+    def run(self, limit: float, n_splits: int = 3):
         kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
         predicts, all_metrics = pd.DataFrame(), pd.DataFrame()
 
@@ -55,28 +55,58 @@ class Stratified:
 
             # Снятие метрик
             index_limit, all_predict = self.classifier.predict(test['phrase'].values, limit)
-            predict = pd.DataFrame(
-                {'phrase': test.phrase, 'subtopic': all_predict.tolist(), 'true': test['true']})
             metrics = self.classifier.metrics(test['true'].iloc[index_limit].values,
                                               all_predict[index_limit])
-            print(metrics)
-
-            # Объединение данных
-            predicts = pd.concat([predicts, predict.explode('subtopic').explode('true')],
-                                 ignore_index=True)
             all_metrics = pd.concat([all_metrics, metrics], ignore_index=True)
+            print(metrics)
+            print(len(index_limit), '\n')
+
+            # predict = pd.DataFrame(
+            #     {'phrase': test.iloc[index_limit]['phrase'],
+            #      'subtopic': all_predict[index_limit],
+            #      'true': test.iloc[index_limit]['true']})
+            # # Объединение данных
+            # predicts = pd.concat([predicts, predict.explode('subtopic').explode('true')],
+            #                      ignore_index=True)
 
         # Сохранение данных
-        all_metrics.to_csv(self.path(f'data/{limit}_all_metrics.csv'), index=False)
-        predicts.to_csv(self.path(f'data/{limit}_predicts.csv'), index=False)
+        # all_metrics.to_csv(self.path(f'data/{limit}_all_metrics.csv'), index=False)
+        # predicts.to_csv(self.path(f'data/{limit}_predicts.csv'), index=False)
+        return all_metrics.agg('mean')['precision']
+
+    def binary_search(self, precision):
+        left, right = 0, 1000
+
+        while left <= right:
+            mid = (left + right) // 2
+            guess = round(self.run(limit=mid / 1000), 2)
+            if guess == precision:
+                return mid
+            if guess > precision:
+                right = mid - 1
+            else:
+                left = mid + 1
+        return None
+
+    # def binary_search(self, num):
+    #     left, right = 0, 0.99
+    #
+    #     while left <= right:
+    #         mid = (left + right) / 2
+    #         guess = self.run(limit=mid)
+    #         if guess >= num:
+    #             return mid
+    #         else:
+    #             left = mid + 0.01
+    #     return None
 
 
 if __name__ == '__main__':
-    preproc = CreateModelData('data/raw/Apteki/Domain.csv')
-    preproc.join_train_data('data/raw/Apteki/Lemmas.csv', 'data/raw/Apteki/Full.csv',
-                            left_on='Lemma', right_on='item')
+    preproc = CreateModelData('data/raw/Parfjum/Domain.csv')
+    preproc.join_train_data('data/raw/Parfjum/Synonyms.csv', 'data/raw/Parfjum/Full.csv')
     clas = KFoldClassifier('models/adaptation/apteki_0_67_10_perfume-adaptive.bin')
     system = Stratified('data/processed/marked-up-join.csv', clas)
     t1 = time()
-    system.run(limit=0.30)
+    # system.run(limit=0.98)
+    system.binary_search(0.8)
     print(time() - t1)
