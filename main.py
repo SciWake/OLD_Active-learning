@@ -5,6 +5,89 @@ from time import time
 from pathlib import Path
 from src.data import CreateModelData
 
+# ____________
+import torch
+import warnings
+import torch.nn.functional as F
+import transformers
+
+from transformers import BertModel, BertTokenizer
+from sklearn.metrics import confusion_matrix, classification_report
+from sklearn.model_selection import train_test_split
+from collections import defaultdict
+from textwrap import wrap
+from tqdm.notebook import tqdm
+from torch import nn, optim
+from torch.utils.data import Dataset, DataLoader
+
+# Torch settings
+torch.cuda.empty_cache()
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+RANDOM_SEED = 777
+np.random.seed(RANDOM_SEED)
+torch.manual_seed(RANDOM_SEED)
+
+# BERT settings
+MAX_LEN = 254
+PRE_TRAINED_MODEL_NAME = 'cointegrated/rubert-tiny'
+tokenizer = BertTokenizer.from_pretrained(PRE_TRAINED_MODEL_NAME, do_lower_case=True)
+
+
+class ReviewDataset(Dataset):
+
+    def __init__(self, reviews, targets, tokenizer, max_len):
+        self.reviews = reviews
+        self.targets = targets
+        self.tokenizer = tokenizer
+        self.max_len = max_len
+
+    def __len__(self):
+        return len(self.reviews)
+
+    def __getitem__(self, item):
+        review = str(self.reviews[item])
+        target = self.targets[item]
+
+        encoding = self.tokenizer.encode_plus(
+            review,
+            add_special_tokens=True,
+            max_length=self.max_len,
+            return_token_type_ids=False,
+            pad_to_max_length=True,
+            truncation=True,
+            return_attention_mask=True,
+            return_tensors='pt')
+
+        return {
+            'review_text': review,
+            'input_ids': encoding['input_ids'].flatten(),
+            'attention_mask': encoding['attention_mask'].flatten(),
+            'targets': torch.tensor(target, dtype=torch.long)}
+
+
+def create_data_loader(df, tokenizer, max_len, batch_size):
+    ds = ReviewDataset(
+        reviews=df.review.to_numpy(),
+        targets=df.sentiment.to_numpy(),
+        tokenizer=tokenizer,
+        max_len=max_len)
+
+    return DataLoader(ds, batch_size=batch_size)
+
+
+class SentimentClassifier(nn.Module):
+    def __init__(self, n_classes):
+        super(SentimentClassifier, self).__init__()
+        self.bert = BertModel.from_pretrained(PRE_TRAINED_MODEL_NAME)
+        self.drop = nn.Dropout(p=0.1)
+        self.out = nn.Linear(self.bert.config.hidden_size, n_classes)
+
+    def forward(self, input_ids, attention_mask):
+        outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask)
+        output = self.drop(outputs["pooler_output"])
+        return self.out(output)
+
 
 class ModelTraining:
     run_model = False
@@ -116,11 +199,13 @@ class ModelTraining:
 
 
 if __name__ == '__main__':
-    # full = pd.read_csv('data/input/Parfjum_full_list_to_markup.csv')
-    # clearing = ClearingPhrases(full.words_ordered.values)
-    # phrases = ClearingPhrases(full.words_ordered.values).get_best_texts
     preproc = CreateModelData('data/raw/Decorative/Domain.csv')
-    preproc.join_train_data('data/raw/Decorative/Synonyms_test.csv', 'data/raw/Decorative/Full_test.csv')
+    preproc.join_train_data('data/raw/Decorative/Synonyms_test.csv',
+                            'data/raw/Decorative/Full_test.csv')
+
+    model = SentimentClassifier(len(class_names))
+    model = model.to(device)
+
     print('Формирование данных завершено')
     system = ModelTraining('')
     t1 = time()
