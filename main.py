@@ -4,13 +4,12 @@ import numpy as np
 from time import time
 from pathlib import Path
 from src.data import CreateModelData
-from src.models import Classifier
 
 
 class ModelTraining:
     run_model = False
 
-    def __init__(self, classifier: Classifier):
+    def __init__(self, classifier: None):
         self.classifier = classifier
         self.train = self.__read_train('data/processed/marked-up-join.csv')
         self.init_df = pd.read_csv('data/processed/init_df.csv')
@@ -123,7 +122,7 @@ if __name__ == '__main__':
     preproc = CreateModelData('data/raw/Decorative/Domain.csv')
     preproc.join_train_data('data/raw/Decorative/Synonyms_test.csv', 'data/raw/Decorative/Full_test.csv')
     print('Формирование данных завершено')
-    system = ModelTraining(Classifier('models/adaptation/decorative_0_96_1_perfumery-adaptive.bin'))
+    system = ModelTraining('')
     t1 = time()
     system.start(limit=0.97, batch_size=500)
     print(time() - t1)
