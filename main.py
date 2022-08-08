@@ -34,6 +34,8 @@ BATCH_SIZE = 32
 PRE_TRAINED_MODEL_NAME = 'cointegrated/rubert-tiny'
 tokenizer = BertTokenizer.from_pretrained(PRE_TRAINED_MODEL_NAME, do_lower_case=True)
 
+from sklearn.metrics import precision_score, recall_score, f1_score
+
 
 class ReviewDataset(Dataset):
 
@@ -209,8 +211,8 @@ class ModelTraining:
         self.init_size = self.init_df.shape[0]
         self.full = pd.read_csv('data/raw/Decorative/Full_test.csv')
 
-        encode = LabelEncoder()
-        self.init_df['true'] = encode.fit_transform(self.init_df['true'])
+        self.encode = LabelEncoder()
+        self.init_df['true'] = self.encode.fit_transform(self.init_df['true'])
 
     def __read_train(self, train_file: str):
         """
@@ -221,8 +223,9 @@ class ModelTraining:
         train = pd.read_csv(self.path(train_file)).sort_values('frequency', ascending=False)[
             ['phrase', 'subtopic']]
         train['true'] = train['subtopic']
-        return train.groupby(by='phrase').agg(subtopic=('subtopic', 'unique'),
-                                              true=('true', 'unique')).reset_index()
+        return train
+        # return train.groupby(by='phrase').agg(subtopic=('subtopic', 'unique'),
+        #                                       true=('true', 'unique')).reset_index()
 
     # There may be data preprocessing or it may be placed in a separate class
     def __update_predict_df(self, markup: pd.DataFrame):
@@ -252,6 +255,23 @@ class ModelTraining:
         self.train = self.train.drop(index=batch.index).reset_index(drop=True)
         self.__update_predict_df(batch.explode(['subtopic', 'true']))
         return batch
+
+    @staticmethod
+    def metrics(y_true: np.array, y_pred: np.array, average: str = 'macro') -> pd.DataFrame:
+        """
+        Метод выполняет подсчёт метрик.
+        :param y_true: Истинное значение целевой переменной.
+        :param y_pred: Предсказанное значение целевой переменной.
+        :param average: Метод подсчёта метрик.
+        :return: Результаты метрик в формате pd.DataFrame.
+        """
+
+        return pd.DataFrame({
+            'f1': [f1_score(y_pred, y_true, average=average)],
+            'precision': [precision_score(y_pred, y_true, average=average, zero_division=1)],
+            'recall': [recall_score(y_pred, y_true, average=average, zero_division=0)],
+            'validation_size': [y_true.shape[0]]
+        })
 
     def start(self, limit: float, batch_size: int, window: int = 3):
         # group_all_df = self.init_df.groupby(by='phrase').agg(
@@ -288,14 +308,20 @@ class ModelTraining:
             # Эмуляция разметки данных разметчиками
             batch = self.batch(batch_size=batch_size)
             people += batch.shape[0]
+            batch['true'] = self.encode.transform(batch['true'])
 
             # Оцениваем качество модели по батчам
-            index_limit, all_predict = self.classifier.predict(batch['phrase'].values, limit)
-            metrics = self.classifier.metrics(batch['true'].values, all_predict)
-            metrics[['model_from_val', 'model_from_all', 'people_from_val']] = index_limit.shape[
-                                                                                   0], model, people
-            all_metrics = pd.concat([all_metrics, metrics])
-            all_metrics.iloc[-1:, :3] = all_metrics.iloc[-window:, :3].agg('mean')
+            batch_data_loader = create_data_loader(batch, tokenizer, MAX_LEN, BATCH_SIZE)
+            y_review_texts, y_pred, y_pred_probs, y_test = get_predictions(self.classifier,
+                                                                           batch_data_loader)
+            # index_limit, all_predict = self.classifier.predict(batch['phrase'].values, limit)
+            # metrics = self.classifier.metrics(batch['true'].values, all_predict)
+            # metrics[['model_from_val', 'model_from_all', 'people_from_val']] = index_limit.shape[0], model, people
+
+            metrics = self.metrics(batch['true'].values, y_pred)
+
+            # all_metrics = pd.concat([all_metrics, metrics])
+            # all_metrics.iloc[-1:, :3] = all_metrics.iloc[-window:, :3].agg('mean')
             if people >= 3000:
                 self.run_model = True
 
