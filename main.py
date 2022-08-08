@@ -117,7 +117,6 @@ def train_epoch(model, data_loader, loss_fn, optimizer, device, n_examples):
     return correct_predictions.double() / n_examples, np.mean(losses)
 
 
-
 def eval_model(model, data_loader, loss_fn, device, n_examples):
     model = model.eval()
 
@@ -141,7 +140,7 @@ def eval_model(model, data_loader, loss_fn, device, n_examples):
     return correct_predictions.double() / n_examples, np.mean(losses)
 
 
-def run_train(train_data_loader, val_data_loader, df_train, df_val, epochs=5):
+def run_train(train_data_loader, df_train, df_val=None, val_data_loader=None, epochs=5):
     history = defaultdict(list)
     best_accuracy = 0
 
@@ -151,19 +150,23 @@ def run_train(train_data_loader, val_data_loader, df_train, df_val, epochs=5):
 
         print(f'Train loss {train_loss} accuracy {train_acc}')
 
-        val_acc, val_loss = eval_model(model, val_data_loader, loss_fn, device, len(df_val))
 
-        print(f'Val loss {val_loss} accuracy {val_acc}')
-        print()
+        # val_acc, val_loss = eval_model(model, val_data_loader, loss_fn, device, len(df_val))
+        #
+        # print(f'Val loss {val_loss} accuracy {val_acc}')
+        # print()
 
         history['train_acc'].append(train_acc)
         history['train_loss'].append(train_loss)
-        history['val_acc'].append(val_acc)
-        history['val_loss'].append(val_loss)
+        # history['val_acc'].append(val_acc)
+        # history['val_loss'].append(val_loss)
 
-        if val_acc > best_accuracy:
-            torch.save(model.state_dict(), 'best_model_state.bin')
-            best_accuracy = val_acc
+        # if val_acc > best_accuracy:
+        #     torch.save(model.state_dict(), 'best_model_state.bin')
+        #     best_accuracy = val_acc
+
+
+from sklearn.preprocessing import LabelEncoder
 
 
 class ModelTraining:
@@ -174,8 +177,10 @@ class ModelTraining:
         self.train = self.__read_train('data/processed/marked-up-join.csv')
         self.init_df = pd.read_csv('data/processed/init_df.csv')
         self.init_size = self.init_df.shape[0]
-
         self.full = pd.read_csv('data/raw/Decorative/Full_test.csv')
+
+        encode = LabelEncoder()
+        self.init_df['true'] = encode.fit_transform(self.init_df['true'])
 
     def __read_train(self, train_file: str):
         """
@@ -219,14 +224,13 @@ class ModelTraining:
         return batch
 
     def start(self, limit: float, batch_size: int, window: int = 3):
-        group_all_df = self.init_df.groupby(by='phrase').agg(
-            subtopic=('subtopic', 'unique'),
-            true=('true', 'unique')).reset_index()
+        # group_all_df = self.init_df.groupby(by='phrase').agg(
+        #     subtopic=('subtopic', 'unique'),
+        #     true=('true', 'unique')).reset_index()
 
         # Стартовое обучение модели
-        train_data_loader = create_data_loader(group_all_df, tokenizer, MAX_LEN, BATCH_SIZE)
-        run_train(train_data_loader, train_data_loader, group_all_df, group_all_df)
-
+        train_data_loader = create_data_loader(self.init_df, tokenizer, MAX_LEN, BATCH_SIZE)
+        run_train(train_data_loader, train_data_loader, self.init_df, self.init_df)
 
         people, model = 0, 0
         all_metrics, model_metrics, model_df = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
