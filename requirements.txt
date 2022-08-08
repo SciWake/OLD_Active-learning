@@ -8,3 +8,4 @@ scikit-learn==1.0.2
 tqdm==4.64.0
 pytorch==1.11.0
 openpyxl==3.0.10
+transformers==4.19.2

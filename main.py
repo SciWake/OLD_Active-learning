@@ -30,6 +30,7 @@ torch.manual_seed(RANDOM_SEED)
 
 # BERT settings
 MAX_LEN = 254
+BATCH_SIZE = 32
 PRE_TRAINED_MODEL_NAME = 'cointegrated/rubert-tiny'
 tokenizer = BertTokenizer.from_pretrained(PRE_TRAINED_MODEL_NAME, do_lower_case=True)
 
@@ -68,8 +69,8 @@ class ReviewDataset(Dataset):
 
 def create_data_loader(df, tokenizer, max_len, batch_size):
     ds = ReviewDataset(
-        reviews=df.review.to_numpy(),
-        targets=df.sentiment.to_numpy(),
+        reviews=df.phrase.to_numpy(),
+        targets=df.true.to_numpy(),
         tokenizer=tokenizer,
         max_len=max_len)
 
@@ -89,10 +90,86 @@ class SentimentClassifier(nn.Module):
         return self.out(output)
 
 
+def train_epoch(model, data_loader, loss_fn, optimizer, device, n_examples):
+    model = model.train()
+
+    losses = []
+    correct_predictions = 0
+
+    for d in tqdm(data_loader):
+        input_ids = d["input_ids"].to(device)
+        attention_mask = d["attention_mask"].to(device)
+        targets = d["targets"].to(device)
+
+        outputs = model(input_ids=input_ids, attention_mask=attention_mask)
+
+        _, preds = torch.max(outputs, dim=1)
+        loss = loss_fn(outputs, targets)
+
+        correct_predictions += torch.sum(preds == targets)
+        losses.append(loss.item())
+
+        loss.backward()
+        nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        optimizer.step()
+        optimizer.zero_grad()
+
+    return correct_predictions.double() / n_examples, np.mean(losses)
+
+
+
+def eval_model(model, data_loader, loss_fn, device, n_examples):
+    model = model.eval()
+
+    losses = []
+    correct_predictions = 0
+
+    with torch.no_grad():
+        for d in tqdm(data_loader):
+            input_ids = d["input_ids"].to(device)
+            attention_mask = d["attention_mask"].to(device)
+            targets = d["targets"].to(device)
+
+            outputs = model(input_ids=input_ids, attention_mask=attention_mask)
+            _, preds = torch.max(outputs, dim=1)
+
+            loss = loss_fn(outputs, targets)
+
+            correct_predictions += torch.sum(preds == targets)
+            losses.append(loss.item())
+
+    return correct_predictions.double() / n_examples, np.mean(losses)
+
+
+def run_train(train_data_loader, val_data_loader, df_train, df_val, epochs=5):
+    history = defaultdict(list)
+    best_accuracy = 0
+
+    for epoch in tqdm(range(epochs)):
+        train_acc, train_loss = train_epoch(model, train_data_loader, loss_fn, optimizer, device,
+                                            len(df_train))
+
+        print(f'Train loss {train_loss} accuracy {train_acc}')
+
+        val_acc, val_loss = eval_model(model, val_data_loader, loss_fn, device, len(df_val))
+
+        print(f'Val loss {val_loss} accuracy {val_acc}')
+        print()
+
+        history['train_acc'].append(train_acc)
+        history['train_loss'].append(train_loss)
+        history['val_acc'].append(val_acc)
+        history['val_loss'].append(val_loss)
+
+        if val_acc > best_accuracy:
+            torch.save(model.state_dict(), 'best_model_state.bin')
+            best_accuracy = val_acc
+
+
 class ModelTraining:
     run_model = False
 
-    def __init__(self, classifier: None):
+    def __init__(self, classifier: SentimentClassifier):
         self.classifier = classifier
         self.train = self.__read_train('data/processed/marked-up-join.csv')
         self.init_df = pd.read_csv('data/processed/init_df.csv')
@@ -142,11 +219,14 @@ class ModelTraining:
         return batch
 
     def start(self, limit: float, batch_size: int, window: int = 3):
-        if not self.classifier.start_model_status:  # Если модель пустая - добавляем данные
-            group_all_df = self.init_df.groupby(by='phrase').agg(
-                subtopic=('subtopic', 'unique'),
-                true=('true', 'unique')).reset_index()
-            self.classifier.add(group_all_df['phrase'].values, group_all_df['subtopic'].values)
+        group_all_df = self.init_df.groupby(by='phrase').agg(
+            subtopic=('subtopic', 'unique'),
+            true=('true', 'unique')).reset_index()
+
+        # Стартовое обучение модели
+        train_data_loader = create_data_loader(group_all_df, tokenizer, MAX_LEN, BATCH_SIZE)
+        run_train(train_data_loader, train_data_loader, group_all_df, group_all_df)
+
 
         people, model = 0, 0
         all_metrics, model_metrics, model_df = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
@@ -203,11 +283,26 @@ if __name__ == '__main__':
     preproc.join_train_data('data/raw/Decorative/Synonyms_test.csv',
                             'data/raw/Decorative/Full_test.csv')
 
-    model = SentimentClassifier(len(class_names))
+    model = SentimentClassifier(len(preproc.classes))
     model = model.to(device)
 
+    EPOCHS = 2
+
+    param_optimizer = list(model.named_parameters())
+    no_decay = ['bias', 'gamma', 'beta']
+
+    optimizer_grouped_parameters = [
+        {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)],
+         'weight_decay_rate': 0.01},
+        {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)],
+         'weight_decay_rate': 0.0}
+    ]
+
+    optimizer = torch.optim.AdamW(optimizer_grouped_parameters, lr=2e-5)
+    loss_fn = nn.CrossEntropyLoss().to(device)
+
     print('Формирование данных завершено')
-    system = ModelTraining('')
+    system = ModelTraining(model)
     t1 = time()
     system.start(limit=0.97, batch_size=500)
     print(time() - t1)
