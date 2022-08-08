@@ -320,16 +320,24 @@ class ModelTraining:
 
             metrics = self.metrics(batch['true'].values, y_pred)
 
-            # all_metrics = pd.concat([all_metrics, metrics])
-            # all_metrics.iloc[-1:, :3] = all_metrics.iloc[-window:, :3].agg('mean')
+            all_metrics = pd.concat([all_metrics, metrics])
+            all_metrics.iloc[-1:, :3] = all_metrics.iloc[-window:, :3].agg('mean')
             if people >= 3000:
                 self.run_model = True
 
             # Добавляем новые индексы в модель
-            group_all_df = self.init_df[self.init_size:].groupby(by='phrase').agg(
-                subtopic=('subtopic', 'unique'),
-                true=('true', 'unique')).reset_index()
-            self.classifier.add(group_all_df['phrase'], group_all_df['subtopic'])
+            # group_all_df = self.init_df[self.init_size:].groupby(by='phrase').agg(
+            #     subtopic=('subtopic', 'unique'),
+            #     true=('true', 'unique')).reset_index()
+            # self.classifier.add(group_all_df['phrase'], group_all_df['subtopic'])
+            # self.init_size = self.init_df.shape[0]  # Обновляем размер набора данных
+            # print(all_metrics.iloc[-1])
+
+            # Добавляем новые индексы в модель
+            train_data_loader = create_data_loader(self.init_df[self.init_size:], tokenizer,
+                                                   MAX_LEN, BATCH_SIZE)
+            run_train(train_data_loader, train_data_loader, self.init_df, self.init_df)
+
             self.init_size = self.init_df.shape[0]  # Обновляем размер набора данных
             print(all_metrics.iloc[-1])
 
