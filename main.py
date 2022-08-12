@@ -142,7 +142,7 @@ def eval_model(model, data_loader, loss_fn, device, n_examples):
     return correct_predictions.double() / n_examples, np.mean(losses)
 
 
-def run_train(train_data_loader, df_train, df_val=None, val_data_loader=None, epochs=5):
+def run_train(train_data_loader, df_train, df_val, val_data_loader, epochs=10):
     history = defaultdict(list)
     best_accuracy = 0
 
@@ -213,6 +213,8 @@ class ModelTraining:
 
         self.encode = LabelEncoder()
         self.init_df['true'] = self.encode.fit_transform(self.init_df['true'])
+        self.train['true'] = self.encode.transform(self.train['true'])
+        self.train['true'] = self.encode.transform(self.train['subtopic'])
 
     def __read_train(self, train_file: str):
         """
@@ -257,7 +259,7 @@ class ModelTraining:
         return batch
 
     @staticmethod
-    def metrics(y_true: np.array, y_pred: np.array, average: str = 'macro') -> pd.DataFrame:
+    def metrics(y_true: np.array, y_pred: np.array, average: str = 'micro') -> pd.DataFrame:
         """
         Метод выполняет подсчёт метрик.
         :param y_true: Истинное значение целевой переменной.
@@ -280,7 +282,7 @@ class ModelTraining:
 
         # Стартовое обучение модели
         train_data_loader = create_data_loader(self.init_df, tokenizer, MAX_LEN, BATCH_SIZE)
-        run_train(train_data_loader, train_data_loader, self.init_df, self.init_df)
+        run_train(train_data_loader, self.init_df, self.init_df, train_data_loader, epochs=1)
 
         people, model = 0, 0
         all_metrics, model_metrics, model_df = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
@@ -308,7 +310,6 @@ class ModelTraining:
             # Эмуляция разметки данных разметчиками
             batch = self.batch(batch_size=batch_size)
             people += batch.shape[0]
-            batch['true'] = self.encode.transform(batch['true'])
 
             # Оцениваем качество модели по батчам
             batch_data_loader = create_data_loader(batch, tokenizer, MAX_LEN, BATCH_SIZE)
@@ -322,8 +323,8 @@ class ModelTraining:
 
             all_metrics = pd.concat([all_metrics, metrics])
             all_metrics.iloc[-1:, :3] = all_metrics.iloc[-window:, :3].agg('mean')
-            if people >= 3000:
-                self.run_model = True
+            # if people >= 3000:
+            #     self.run_model = True
 
             # Добавляем новые индексы в модель
             # group_all_df = self.init_df[self.init_size:].groupby(by='phrase').agg(
@@ -336,7 +337,8 @@ class ModelTraining:
             # Добавляем новые индексы в модель
             train_data_loader = create_data_loader(self.init_df[self.init_size:], tokenizer,
                                                    MAX_LEN, BATCH_SIZE)
-            run_train(train_data_loader, train_data_loader, self.init_df, self.init_df)
+            run_train(train_data_loader, self.init_df[self.init_size:],
+                      self.init_df[self.init_size:], train_data_loader, )
 
             self.init_size = self.init_df.shape[0]  # Обновляем размер набора данных
             print(all_metrics.iloc[-1])
