@@ -28,8 +28,9 @@ class CreateModelData:
         """
         d = pd.read_csv(self.path(path))
         c = list({i.strip().lower() for i in np.append(d['Тема'], d['Подтема']) if type(i) == str})
-        d = pd.DataFrame({'phrase': c, 'subtopic': c, 'true': c})
+        d = pd.DataFrame({'phrase': c, 'subtopic': c})
         d.to_csv(self.path('data/processed/init_df.csv'), index=False)
+        print(f"Сохранение плоского классификатора {self.path('data/processed/init_df.csv')} ")
         return c
 
     def __processing(self, d: pd.DataFrame) -> pd.DataFrame:
@@ -43,18 +44,3 @@ class CreateModelData:
         d = d.loc[d.subtopic.isin(self.classes)].drop_duplicates('phrase', ignore_index=True)
         # Удаление фраз вида: "avonтема"
         return d.drop([i for i, p in enumerate(d.phrase) if re.compile("[A-z]+").findall(p)])
-
-    def join_train_data(self, synonyms: str, full: str, left_on: str = 'Synonyms',
-                        right_on: str = 'item'):
-        """
-        Соеденение размеченных наборов данных в один.
-        :param left_on: Левая колонка для операции merge.
-        :param right_on: Правая колонка для операции merge.
-        :param full: Полный набор данных.
-        :param synonyms: Размеченный набор данных.
-        """
-        d = pd.read_csv(self.path(synonyms)).merge(pd.read_csv(self.path(full)), right_on=right_on,
-                                                   left_on=left_on, how="inner")
-        d = d.loc[d.Result == 1, ['item', 'Topic', 'frequency']].rename(
-            columns={'item': 'phrase', 'Topic': 'subtopic'})
-        self.__processing(d).to_csv('data/processed/marked-up-join.csv', index=False)

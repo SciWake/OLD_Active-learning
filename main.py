@@ -12,7 +12,7 @@ class ModelTraining:
 
     def __init__(self, classifier: Classifier):
         self.classifier = classifier
-        self.train = self.__read_train('data/processed/marked-up-join.csv')
+        self.train = self.__read_train('run_data/data.xlsx')
         self.init_df = pd.read_csv('data/processed/init_df.csv')
         self.init_size = self.init_df.shape[0]
 
@@ -22,11 +22,9 @@ class ModelTraining:
         :param train_file: Путь до файла.
         :return: Агрегированный набор данных.
         """
-        train = pd.read_csv(self.path(train_file)).sort_values('frequency', ascending=False)[
-            ['phrase', 'subtopic']]
-        train['true'] = train['subtopic']
-        return train.groupby(by='phrase').agg(subtopic=('subtopic', 'unique'),
-                                              true=('true', 'unique')).reset_index()
+        return pd.read_excel(self.path(train_file)
+                             ).sort_values('frequency', ascending=False).reset_index(drop=True)
+        # return train.groupby(by='phrase').agg(subtopic=('subtopic', 'unique'), true=('true', 'unique')).reset_index()
 
     # There may be data preprocessing or it may be placed in a separate class
     def __update_predict_df(self, markup: pd.DataFrame):
@@ -45,18 +43,19 @@ class ModelTraining:
         return Path(os.getcwd(), path)
 
     # Upgrade to implementation from PyTorch
-    def batch(self, batch_size: int) -> pd.DataFrame:
+    def get_batch(self, batch_size: int) -> pd.DataFrame:
         batch = self.train[:batch_size]  # Получаем разметку и отправляем в размеченный набор данных
         self.train = self.train.drop(index=batch.index).reset_index(drop=True)
-        self.__update_predict_df(batch.explode(['subtopic', 'true']))
+        self.train.to_csv('point/train.csv', index=False)  # POINT
         return batch
 
     def start(self, limit: float, batch_size: int, window: int = 3):
         if not self.classifier.start_model_status:  # Если модель пустая - добавляем данные
-            group_all_df = self.init_df.groupby(by='phrase').agg(
-                subtopic=('subtopic', 'unique'),
-                true=('true', 'unique')).reset_index()
-            self.classifier.add(group_all_df['phrase'].values, group_all_df['subtopic'].values)
+            # group_all_df = self.init_df.groupby(by='phrase').agg(
+            #     subtopic=('subtopic', 'unique'),
+            #     true=('true', 'unique')).reset_index()
+            self.classifier.add(self.init_df['phrase'].values, self.init_df['subtopic'].values)
+            print('Холодный старт модели')
 
         people, model = 0, 0
         all_metrics, model_metrics, model_df = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
@@ -85,7 +84,7 @@ class ModelTraining:
                 # self.train = self.__drop_full_from_train(self.train, pred)
 
             # Эмуляция разметки данных разметчиками
-            batch = self.batch(batch_size=batch_size)
+            batch = self.get_batch(batch_size=batch_size)
             people += batch.shape[0]
 
             # Оцениваем качество модели по батчам
@@ -97,6 +96,7 @@ class ModelTraining:
             all_metrics.iloc[-1:, :3] = all_metrics.iloc[-window:, :3].agg('mean')
             if people >= 3000:
                 self.run_model = True
+                print('Запуск режима разметки моделью')
 
             # Добавляем новые индексы в модель
             group_all_df = self.init_df[self.init_size:].groupby(by='phrase').agg(
@@ -112,9 +112,7 @@ class ModelTraining:
 
 
 if __name__ == '__main__':
-    preproc = CreateModelData('data/raw/Parfjum/Domain.csv')
-    preproc.join_train_data('data/raw/Parfjum/Synonyms.csv', 'data/raw/Parfjum/Full.csv')
-    print('Формирование данных завершено')
+    preproc = CreateModelData('run_data/Domain.csv')
     system = ModelTraining(Classifier('models/adaptation/decorative_0_96_1_perfumery-adaptive.bin'))
     t1 = time()
     system.start(limit=0.97, batch_size=500)

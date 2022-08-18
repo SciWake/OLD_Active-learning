@@ -17,7 +17,6 @@ class PredictError(Exception):
 
 class Classifier:
     start_model_status = 0
-    vec_size = 300
     y = np.array([])
     emb = {}
 
@@ -27,7 +26,9 @@ class Classifier:
         :param faiss_path: Путь до сохранённых индексов faiss.
         :param embedding_path: Путь до сохранённых вектороных представлений фраз.
         """
+        print('Загрузка модели...')
         self.model = fasttext.load_model(str(self.path(model)))
+        print('Модель успешно загружена')
         if faiss_path:
             with open(self.path(faiss_path), 'rb') as f:
                 self.index, self.y = pickle.load(f)
@@ -52,7 +53,7 @@ class Classifier:
             if not self.emb.get(text, np.array([])).shape[0]:
                 self.emb[text] = normalize([self.model.get_sentence_vector(text)])[0]
             emb.append(self.emb.get(text))
-        with open(self.path('models/cache/emb.pkl'), 'wb') as f:
+        with open(self.path('point/emb.pkl'), 'wb') as f:
             pickle.dump(self.emb, f)
         return np.array(emb, dtype='float32')
 
@@ -64,11 +65,11 @@ class Classifier:
         :return: self.
         """
         if not self.y.shape[0]:
-            self.index = faiss.IndexFlat(self.vec_size)
+            self.index = faiss.IndexFlat(self.embeddings(x[0]).shape[1])
         if not self.start_model_status:
             self.index.add(self.embeddings(x))
             self.y = np.append(self.y, y)
-            with open(self.path('models/cache/faiss.pkl'), 'wb') as f:
+            with open(self.path('point/faiss.pkl'), 'wb') as f:
                 pickle.dump((self.index, self.y), f)
         return self
 
