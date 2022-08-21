@@ -5,13 +5,16 @@ from time import time
 from pathlib import Path
 from src.data import CreateModelData
 from src.models import Classifier
+from src.labelstud.script import LabelStudio
 
 
 class ModelTraining:
     run_model = False
+    history = False
 
-    def __init__(self, classifier: Classifier):
+    def __init__(self, classifier: Classifier, label: LabelStudio):
         self.classifier = classifier
+        self.lb = label
         self.train = self.__read_train('run_data/data.xlsx')
         self.init_df = pd.read_csv('data/processed/init_df.csv')
         self.init_size = self.init_df.shape[0]
@@ -50,7 +53,7 @@ class ModelTraining:
         return batch
 
     def start(self, limit: float, batch_size: int, window: int = 3):
-        if not self.classifier.start_model_status:  # Если модель пустая - добавляем данные
+        if not self.classifier.history:  # Если модель пустая - добавляем данные
             # group_all_df = self.init_df.groupby(by='phrase').agg(
             #     subtopic=('subtopic', 'unique'),
             #     true=('true', 'unique')).reset_index()
@@ -110,10 +113,19 @@ class ModelTraining:
         self.__save_metrics(model_metrics, limit, batch_size, 'model_metrics')
         self.__save_metrics(model_df, limit, batch_size, 'model_data')
 
+    def controller(self):
+        if 'train.csv' in os.listdir('point'):
+            self.classifier.history, self.history = True, True
+
+
+LABEL_STUDIO_URL = ''
+API_KEY = ''
 
 if __name__ == '__main__':
     preproc = CreateModelData('run_data/Domain.csv')
-    system = ModelTraining(Classifier('models/adaptation/decorative_0_96_1_perfumery-adaptive.bin'))
+    system = ModelTraining(Classifier('models/adaptation/decorative_0_96_1_perfumery-adaptive.bin'),
+                           LabelStudio('http://13.51.176.62:8081/',
+                                       '345e56154fd4c41942bb9058799acdd0222e2e43'))
     t1 = time()
     system.start(limit=0.97, batch_size=500)
     print(time() - t1)
