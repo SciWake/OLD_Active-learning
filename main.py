@@ -52,7 +52,7 @@ class ModelTraining:
         self.train.to_csv('point/train.csv', index=False)  # POINT
         return batch
 
-    def start(self, limit: float, batch_size: int, window: int = 3):
+    def start(self, batch_size: int, window: int = 3):
         if not self.classifier.history:  # Если модель пустая - добавляем данные
             # group_all_df = self.init_df.groupby(by='phrase').agg(
             #     subtopic=('subtopic', 'unique'),
@@ -91,7 +91,7 @@ class ModelTraining:
             people += batch.shape[0]
 
             # Оцениваем качество модели по батчам
-            index_limit, all_predict = self.classifier.predict(batch['phrase'].values, limit)
+            index_limit, all_predict = self.classifier.predict(batch['phrase'].values, 0.97)
             metrics = self.classifier.metrics(batch['true'].values, all_predict)
             metrics[['model_from_val', 'model_from_all', 'people_from_val']] = \
                 index_limit.shape[0], model, people
@@ -109,13 +109,17 @@ class ModelTraining:
             self.init_size = self.init_df.shape[0]  # Обновляем размер набора данных
             print(all_metrics.iloc[-1])
 
-        self.__save_metrics(all_metrics, limit, batch_size, 'all_metrics')
-        self.__save_metrics(model_metrics, limit, batch_size, 'model_metrics')
-        self.__save_metrics(model_df, limit, batch_size, 'model_data')
+        self.__save_metrics(all_metrics, 0.97, batch_size, 'all_metrics')
+        self.__save_metrics(model_metrics, 0.97, batch_size, 'model_metrics')
+        self.__save_metrics(model_df, 0.97, batch_size, 'model_data')
 
     def controller(self):
         if 'train.csv' in os.listdir('point'):
-            self.classifier.history, self.history = True, True
+            self.history = True
+            self.classifier(history=True)
+        else:
+            self.lb.create_project('New project')
+        self.start(batch_size=500)
 
 
 LABEL_STUDIO_URL = ''
@@ -124,8 +128,8 @@ API_KEY = ''
 if __name__ == '__main__':
     preproc = CreateModelData('run_data/Domain.csv')
     system = ModelTraining(Classifier('models/adaptation/decorative_0_96_1_perfumery-adaptive.bin'),
-                           LabelStudio('http://13.51.176.62:8081/',
-                                       '345e56154fd4c41942bb9058799acdd0222e2e43'))
+                           LabelStudio('http://95.216.102.50:8083/',
+                                       '1145031409b0101a065785ccb7dedf49532e1172'))
     t1 = time()
-    system.start(limit=0.97, batch_size=500)
+    system.controller()
     print(time() - t1)

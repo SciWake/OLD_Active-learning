@@ -44,6 +44,7 @@ class Classifier:
                 self.index, self.y = pickle.load(f)
             with open(self.path('point/emb.pkl'), 'rb') as f:
                 self.emb = pickle.load(f)
+            print('Загружен последний статус модели')
 
     @staticmethod
     def path(path):

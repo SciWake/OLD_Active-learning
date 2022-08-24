@@ -1,10 +1,45 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-</head>
-<body>
+<View style="box-shadow: 2px 2px 5px #999;">
+  <View style="font-size: 14pt; padding-top: 20px; margin-left: 0.6em; font-weight: bold;">
+    <Text value="$text" name="ngramm"/>
+  </View>
 
-</body>
-</html>
+  <View name="block_flex" style="display: flex; padding-top: 20px;">
+      <View style="flex: 30%; padding: 0px; border-radius: 5px; margin-left: 1.4em;">
+
+        <Header value="Блок тем" style="font-size: 11pt;"/>
+        <Choices name="gender" toName="ngramm" choice="multiple">
+          <Choice value="Ситуация потребления"/>
+          <Choice value="Сенсорные характеристики продукта"/>
+          <Choice value="Цена продукта"/>
+          <Choice value="Технологические/технические характеристики продукта"/>
+          <Choice value="Процесс покупки продукта"/>
+          <Choice value="Другое"/>
+        </Choices>
+      </View>
+
+     <View style="flex: 15%; padding: 0px; border-radius: 5px; margin-left: 0em;">
+      <Header value="Фасета" style="font-size: 11pt;"/>
+      <Choices name="gender4" toName="ngramm" choice="multiple">
+        <Choice value="Тип потребителя"/>
+        <Choice value="Эмоция"/>
+        <Choice value="Образ жизни"/>
+      </Choices>
+    </View>
+
+    <View style="flex: 15%; padding: 0px; border-radius: 5px; margin-left: 0em;">
+      <Header value="Тональность темы" style="font-size: 11pt;"/>
+      <Choices name="gender2" toName="ngramm" choice="single-radio">
+        <Choice value="Позитив"/>
+        <Choice value="Негатив"/>
+      </Choices>
+    </View>
+
+    <View style="flex: 15%; padding: 0px; border-radius: 5px; margin-left: 0em;">
+      <Header value="Продуктовая категория" style="font-size: 11pt;"/>
+      <Choices name="gender3" toName="ngramm" choice="multiple">
+        <Choice value="Есть упоминание продукта"/>
+      </Choices>
+    </View>
+
+  </View>
+</View>
