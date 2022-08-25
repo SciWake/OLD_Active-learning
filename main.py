@@ -51,7 +51,6 @@ class ModelTraining:
     def get_batch(self, batch_size: int) -> pd.DataFrame:
         batch = self.train[:batch_size]  # Получаем разметку и отправляем в размеченный набор данных
         self.train = self.train.drop(index=batch.index).reset_index(drop=True)
-        self.train.to_csv('point/train.csv', index=False)  # POINT
         return batch
 
     def start(self, batch_size: int, window: int = 3):
@@ -88,17 +87,16 @@ class ModelTraining:
                 # self.__update_predict_df(pred.explode('subtopic').explode('true'))
                 # self.train = self.__drop_full_from_train(self.train, pred)
 
-            # Эмуляция разметки данных разметчиками
-            batch = self.get_batch(batch_size=batch_size)
-            people += batch.shape[0]
-            self.lb.load_data(batch)
-            print('Данные загружены')
+            if len(self.lb.project.get_unlabeled_tasks_ids()) < 20:
+                # Эмуляция разметки данных разметчиками
+                batch = self.get_batch(batch_size=batch_size)
+                people += batch.shape[0]
+                self.lb.load_data(batch)
+                self.train.to_csv('point/train.csv', index=False)  # POINT
+                print('Данные загружены')
 
-            while self.lb.project.get_unlabeled_tasks_ids() > 20:
-                sleep(100)
-                print('Ожидание разметки...')
+            tasks = self.lb.check_status()
 
-            tasks = self.lb.project.export_tasks()
             print('Получаем данные')
 
             # Оцениваем качество модели по батчам
@@ -127,6 +125,9 @@ class ModelTraining:
         self.__save_metrics(model_df, 0.97, batch_size, 'model_data')
 
     def controller(self):
+        """
+        Решает проблему повторного запуска.
+        """
         if 'train.csv' in os.listdir('point'):
             self.history = True
             self.classifier(history=True)
