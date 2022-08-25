@@ -65,7 +65,7 @@ class ModelTraining:
         while self.train.shape[0]:
             if self.run_model:
                 # Размечаем набор данных моделью
-                index_limit, all_predict = self.classifier.predict(self.train['phrase'], limit)
+                index_limit, all_predict = self.classifier.predict(self.train['phrase'], 0.97)
                 model += index_limit.shape[0]
                 pred = pd.DataFrame({'phrase': self.train.iloc[index_limit]['phrase'],
                                      'subtopic': all_predict[index_limit] if
@@ -89,6 +89,8 @@ class ModelTraining:
             # Эмуляция разметки данных разметчиками
             batch = self.get_batch(batch_size=batch_size)
             people += batch.shape[0]
+            self.lb.load_data(batch)
+            print('Данные загружены')
 
             # Оцениваем качество модели по батчам
             index_limit, all_predict = self.classifier.predict(batch['phrase'].values, 0.97)
@@ -97,9 +99,12 @@ class ModelTraining:
                 index_limit.shape[0], model, people
             all_metrics = pd.concat([all_metrics, metrics])
             all_metrics.iloc[-1:, :3] = all_metrics.iloc[-window:, :3].agg('mean')
+
+
             if people >= 3000:
                 self.run_model = True
                 print('Запуск режима разметки моделью')
+                print('Процесс калибровки порога...')
 
             # Добавляем новые индексы в модель
             group_all_df = self.init_df[self.init_size:].groupby(by='phrase').agg(
@@ -118,7 +123,8 @@ class ModelTraining:
             self.history = True
             self.classifier(history=True)
         else:
-            self.lb.create_project('New project')
+            self.lb.create_project('Project 123')
+
         self.start(batch_size=500)
 
 

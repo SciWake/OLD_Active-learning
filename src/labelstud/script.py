@@ -26,9 +26,9 @@ class LabelStudio:
             if project.title == project_name:
                 return project
 
-    def load_data(self, project: project, file: str, column: str):
-        # project.import_tasks([task['data'] for task in tasks[50:60]])
-        pass
+    def load_data(self, data: pd.DataFrame):
+        self.project.import_tasks([task['data'] for task in data])
+
 
     def get_project_info(self):
         pass

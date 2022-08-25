@@ -97,7 +97,7 @@ class Classifier:
                 break
         return list(unique)[:max_count]
 
-    def predict(self, x: np.array, limit: float) -> tuple:
+    def predict(self, x: np.array, limit: float = 1) -> tuple:
         """
         Предсказание категории для фразы.
         :param x: Набор фраз.
