@@ -1,9 +1,7 @@
 import os
 import pickle
 import pandas as pd
-import requests.exceptions
 from label_studio_sdk import Client
-from label_studio_sdk import project
 from pathlib import Path
 from time import sleep
 
@@ -77,12 +75,3 @@ class LabelStudio:
             annotations = pd.concat([annotations, df], ignore_index=True)
             self.tasks_ids.add(int(task['id']))
         return annotations
-
-    def get_project_info(self):
-        pass
-
-
-if __name__ == '__main__':
-    LABEL_STUDIO_URL = ''
-    API_KEY = ''
-    ls = Client(url=LABEL_STUDIO_URL, api_key=API_KEY)

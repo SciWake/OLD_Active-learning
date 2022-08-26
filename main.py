@@ -1,19 +1,15 @@
 import os
 import pandas as pd
-import numpy as np
 from time import time
 from pathlib import Path
 from src.data import CreateModelData
 from src.models import Classifier
 from src.labelstud.script import LabelStudio
 from kfold import Stratified
-from time import sleep
-import requests
 
 
 class ModelTraining:
-    run_model = False
-    history = False
+    run_model, history = False, False
 
     def __init__(self, classifier: Classifier, label: LabelStudio):
         self.classifier = classifier
@@ -136,6 +132,7 @@ class ModelTraining:
             pass  # Очистка POINT данных
         if 'train.csv' in os.listdir('point'):
             self.history = True
+            self.train = self.__read_train('point/train.csv')
             self.classifier(history=True)
             self.lb()
         else:
@@ -145,14 +142,13 @@ class ModelTraining:
         self.start(batch_size=500)
 
 
-LABEL_STUDIO_URL = ''
-API_KEY = ''
+LABEL_STUDIO_URL = 'http://95.216.102.50:8083/'
+API_KEY = '1145031409b0101a065785ccb7dedf49532e1172'
 
 if __name__ == '__main__':
     preproc = CreateModelData('run_data/Domain.csv')
     system = ModelTraining(Classifier('models/adaptation/decorative_0_96_1_perfumery-adaptive.bin'),
-                           LabelStudio('http://95.216.102.50:8083/',
-                                       '1145031409b0101a065785ccb7dedf49532e1172'))
+                           LabelStudio(LABEL_STUDIO_URL, API_KEY))
     t1 = time()
     system.controller()
     print(time() - t1)
