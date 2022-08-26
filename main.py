@@ -8,6 +8,7 @@ from src.models import Classifier
 from src.labelstud.script import LabelStudio
 from kfold import Stratified
 from time import sleep
+import requests
 
 
 class ModelTraining:
@@ -95,9 +96,11 @@ class ModelTraining:
                 self.train.to_csv('point/train.csv', index=False)  # POINT
                 print('Данные загружены')
 
-            tasks = self.lb.check_status()
-
-            print('Получаем данные')
+            self.lb.check_status()
+            copy_batch = batch.copy()
+            print('Получаем данные...')
+            batch = self.lb.get_annotations()
+            print('Данные получены...')
 
             # Оцениваем качество модели по батчам
             index_limit, all_predict = self.classifier.predict(batch['phrase'].values, 0.99)
@@ -117,6 +120,7 @@ class ModelTraining:
                 subtopic=('subtopic', 'unique'),
                 true=('true', 'unique')).reset_index()
             self.classifier.add(group_all_df['phrase'], group_all_df['subtopic'])
+            self.lb.save_point_tasks()  # POINT
             self.init_size = self.init_df.shape[0]  # Обновляем размер набора данных
             print(all_metrics.iloc[-1])
 
@@ -124,13 +128,16 @@ class ModelTraining:
         self.__save_metrics(model_metrics, 0.97, batch_size, 'model_metrics')
         self.__save_metrics(model_df, 0.97, batch_size, 'model_data')
 
-    def controller(self):
+    def controller(self, new: bool = False):
         """
         Решает проблему повторного запуска.
         """
+        if new:
+            pass  # Очистка POINT данных
         if 'train.csv' in os.listdir('point'):
             self.history = True
             self.classifier(history=True)
+            self.lb()
         else:
             self.lb.create_project('Project 123')
             print('-' * 100)

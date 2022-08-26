@@ -80,7 +80,6 @@ class Classifier:
         self.y = np.append(self.y, y)
         with open(self.path('point/faiss.pkl'), 'wb') as f:
             pickle.dump((self.index, self.y), f)
-        return self
 
     @staticmethod
     def __get_top_classes(classes: np.array, max_count: int = 10) -> list:
