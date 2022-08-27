@@ -51,7 +51,7 @@ class LabelStudio:
         self.save_point_tasks()
 
     def check_status(self):
-        while len(self.project.get_unlabeled_tasks_ids()) > 20:
+        while len(self.project.get_unlabeled_tasks_ids()) <= 5:
             sleep(10)
             print('Ожидание разметки...')
 
@@ -67,11 +67,11 @@ class LabelStudio:
         for task in self.project.export_tasks():
             if int(task['id']) in self.tasks_ids:
                 continue
-            df = pd.DataFrame({'id': task['id'],
-                               'text': task['data']['text'],
-                               **{i['from_name']: [i['value']['choices']] for i in
-                                  task['annotations'][0]['result']}
-                               })
+
+            a = {i['from_name']: [i['value']['choices']] for i in task['annotations'][0]['result']}
+            df = pd.DataFrame({'id': [task['id']],
+                               'text': [task['data']['text']],
+                               **a})
             annotations = pd.concat([annotations, df], ignore_index=True)
             self.tasks_ids.add(int(task['id']))
         return annotations

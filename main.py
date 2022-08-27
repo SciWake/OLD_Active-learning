@@ -14,7 +14,7 @@ class ModelTraining:
     def __init__(self, classifier: Classifier, label: LabelStudio):
         self.classifier = classifier
         self.lb = label
-        self.train = self.__read_train('run_data/data.xlsx')
+        self.train = self.__read_train('run_data/data.csv')
         self.init_df = pd.read_csv('data/processed/init_df.csv')
         self.init_size = self.init_df.shape[0]
 
@@ -24,8 +24,8 @@ class ModelTraining:
         :param train_file: Путь до файла.
         :return: Агрегированный набор данных.
         """
-        return pd.read_excel(self.path(train_file)
-                             ).sort_values('frequency', ascending=False).reset_index(drop=True)
+        return pd.read_csv(self.path(train_file)
+                           ).sort_values('frequency', ascending=False).reset_index(drop=True)
         # return train.groupby(by='phrase').agg(subtopic=('subtopic', 'unique'), true=('true', 'unique')).reset_index()
 
     # There may be data preprocessing or it may be placed in a separate class
@@ -93,7 +93,7 @@ class ModelTraining:
                 print('Данные загружены')
 
             self.lb.check_status()
-            copy_batch = batch.copy()
+
             print('Получаем данные...')
             batch = self.lb.get_annotations()
             print('Данные получены...')
