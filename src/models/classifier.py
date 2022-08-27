@@ -77,7 +77,7 @@ class Classifier:
             self.index = faiss.IndexFlat(self.embeddings(x[0]).shape[1])
 
         self.index.add(self.embeddings(x))
-        self.y = np.append(self.y, y)
+        self.y = np.append(self.y, y).reshape(-1, 1)
         with open(self.path('point/faiss.pkl'), 'wb') as f:
             pickle.dump((self.index, self.y), f)
 
