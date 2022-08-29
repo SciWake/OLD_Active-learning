@@ -11,6 +11,7 @@ from kfold import Stratified
 
 class ModelTraining:
     run_model, history = False, False
+    marked = pd.DataFrame()
 
     def __init__(self, classifier: Classifier, label: LabelStudio,
                  train_path: str = 'run_data/data.csv', domain_path: str = 'run_data/Domain.csv'):
@@ -116,12 +117,13 @@ class ModelTraining:
             print('Данные получены...')
 
             # Оцениваем качество модели по батчам
-            index_limit, all_predict = self.classifier.predict(batch['phrase'].values, 0.99)
-            metrics = self.classifier.metrics(batch['true'].values, all_predict)
+            index_limit, all_predict = self.classifier.predict(batch[TEXT_IN_LB].values)
+            metrics = self.classifier.metrics(batch[TOPIC_IN_LB].values, all_predict)
             metrics[['model_from_val', 'model_from_all', 'people_from_val']] = \
                 index_limit.shape[0], model, people
             all_metrics = pd.concat([all_metrics, metrics])
-            all_metrics.iloc[-1:, :3] = all_metrics.iloc[-window:, :3].agg('mean')
+            if all_metrics.shape[0] >= window:
+                all_metrics.iloc[-1:, :3] = all_metrics.iloc[-window:, :3].agg('mean')
 
             if people >= 3000:
                 self.run_model = True
@@ -161,9 +163,13 @@ class ModelTraining:
 
 LABEL_STUDIO_URL = 'http://95.216.102.50:8083/'
 API_KEY = '1145031409b0101a065785ccb7dedf49532e1172'
+TOPIC_IN_LB = 'gender'
+TEXT_IN_LB = 'text'
+PATH_DF = 'run_data/data.csv'
+PATH_DOMAIN = 'run_data/Domain.csv'
 
 if __name__ == '__main__':
-    preproc = CreateModelData('run_data/Domain.csv')
+    # preproc = CreateModelData(PATH_DOMAIN)
     system = ModelTraining(Classifier('models/adaptation/decorative_0_96_1_perfumery-adaptive.bin'),
                            LabelStudio(LABEL_STUDIO_URL, API_KEY))
     t1 = time()

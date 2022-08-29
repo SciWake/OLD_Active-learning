@@ -1,6 +1,7 @@
 import os
 import pickle
 import pandas as pd
+import numpy as np
 from label_studio_sdk import Client
 from pathlib import Path
 from time import sleep
@@ -51,7 +52,7 @@ class LabelStudio:
         self.save_point_tasks()
 
     def check_status(self):
-        while len(self.project.get_unlabeled_tasks_ids()) <= 5:
+        while len(self.project.get_unlabeled_tasks_ids()) >= 495:
             sleep(10)
             print('Ожидание разметки...')
 
