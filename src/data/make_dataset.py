@@ -12,13 +12,13 @@ class CreateModelData:
         провести владиацию качества модели.
         :param domain: Путь до файла доменной области.
         """
-        self.classes = self.__init_predict(domain)
+        self.classes = self.init_domain(domain)
 
     @staticmethod
     def path(path):
         return Path(os.getcwd(), path)
 
-    def __init_predict(self, path: str):
+    def init_domain(self, path: str):
         """
         Создание начального набора данных для решения проблемы холодного старта.
         true - Категория поставленная разметчиком.
@@ -33,13 +33,14 @@ class CreateModelData:
         print(f"Сохранение плоского классификатора {self.path('data/processed/init_df.csv')} ")
         return c
 
-    def __processing(self, d: pd.DataFrame) -> pd.DataFrame:
+    def processing(self, file: str) -> pd.DataFrame:
         """
         Метод преобразует данные к формату, который используется для обучения
         классификатора.
-        :param d: Набор данных после операции merge.
+        :param file: Набор данных после операции merge.
         :return: Обработанные данные.
         """
+        d = pd.read_csv(self.path(file)).dropna(subset=['item'])
         d['subtopic'] = d.subtopic.apply(lambda x: str(x).strip().lower())
         d = d.loc[d.subtopic.isin(self.classes)].drop_duplicates('phrase', ignore_index=True)
         # Удаление фраз вида: "avonтема"
