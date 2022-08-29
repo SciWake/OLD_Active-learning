@@ -3,15 +3,13 @@ import pandas as pd
 import numpy as np
 from time import time
 from pathlib import Path
-from src.data import CreateModelData
 from src.models import Classifier
 from src.labelstud.script import LabelStudio
 from kfold import Stratified
 
 
 class ModelTraining:
-    run_model, history = False, False
-    # marked = pd.DataFrame()
+    run_model, history, limit = False, False, 0.99
 
     def __init__(self, classifier: Classifier, label: LabelStudio,
                  train_path: str = 'run_data/data.csv', domain_path: str = 'run_data/Domain.csv'):
@@ -19,7 +17,6 @@ class ModelTraining:
         self.lb = label
         self.train = self.__read_train(train_path)
         self.init_df = self.__init_domain(domain_path)
-        # self.init_size = self.init_df.shape[0]
 
     def __read_train(self, train_file: str):
         """
@@ -70,9 +67,6 @@ class ModelTraining:
 
     def start(self, batch_size: int, window: int = 3):
         if not self.classifier.history:  # Если модель пустая - добавляем данные
-            # group_all_df = self.init_df.groupby(by='phrase').agg(
-            #     subtopic=('subtopic', 'unique'),
-            #     true=('true', 'unique')).reset_index()
             self.classifier.add(self.init_df['phrase'].values, self.init_df['subtopic'].values)
             print('Холодный старт модели')
 
@@ -81,26 +75,13 @@ class ModelTraining:
         while self.train.shape[0]:
             if self.run_model:
                 # Размечаем набор данных моделью
-                index_limit, all_predict = self.classifier.predict(self.train['phrase'], 0.99)
-                model += index_limit.shape[0]
-                pred = pd.DataFrame({'phrase': self.train.iloc[index_limit]['phrase'],
-                                     'subtopic': all_predict[index_limit] if
-                                     index_limit.shape[0] else [],
-                                     'true': self.train.iloc[index_limit]['true']})
-                model_df = pd.concat([model_df, pred.explode('subtopic').explode('true')],
-                                     ignore_index=True)
+                limit, all_predict = self.classifier.predict(self.train[TOPIC_IN_LB], self.limit)
+                model += limit.shape[0]
+                pred = pd.DataFrame({'item': self.train.iloc[limit]['item'],
+                                     'topic': all_predict[limit] if limit.shape[0] else []})
+                model_df = pd.concat([model_df, pred.explode('topic')], ignore_index=True)
 
-                # Оцениваем качество модели, если количество предсказанных объектов больше 10
-                if index_limit.shape[0] > 10:
-                    metrics = self.classifier.metrics(pred['true'].values, pred['subtopic'].values)
-                    metrics[['model_from_val', 'model_from_all', 'people_from_val']] = \
-                        index_limit.shape[0], model, people
-                    model_metrics = pd.concat([model_metrics, metrics])
-                    model_metrics.iloc[-1:, :3] = model_metrics.iloc[-window:, :3].agg('mean')
-
-                self.train = self.train.drop(index=index_limit).reset_index(drop=True)
-                # self.__update_predict_df(pred.explode('subtopic').explode('true'))
-                # self.train = self.__drop_full_from_train(self.train, pred)
+                self.train = self.train.drop(index=limit).reset_index(drop=True)
 
             if len(self.lb.project.get_unlabeled_tasks_ids()) < 20:
                 # Эмуляция разметки данных разметчиками
@@ -114,14 +95,13 @@ class ModelTraining:
 
             print('Получаем данные...')
             batch = self.lb.get_annotations()
-            # self.marked = pd.concat([self.marked, batch], ignore_index=True)
             print('Данные получены...')
 
             # Оцениваем качество модели по батчам
-            index_limit, all_predict = self.classifier.predict(batch[TEXT_IN_LB].values)
+            limit, all_predict = self.classifier.predict(batch[TEXT_IN_LB].values)
             metrics = self.classifier.metrics(batch[TOPIC_IN_LB].values, all_predict)
             metrics[['model_from_val', 'model_from_all', 'people_from_val']] = \
-                index_limit.shape[0], model, people
+                limit.shape[0], model, people
             all_metrics = pd.concat([all_metrics, metrics])
             if all_metrics.shape[0] >= window:
                 all_metrics.iloc[-1:, :3] = all_metrics.iloc[-window:, :3].agg('mean')
@@ -131,13 +111,8 @@ class ModelTraining:
                 print('Запуск режима разметки моделью')
                 print('Процесс калибровки порога...')
 
-            # # Добавляем новые индексы в модель
-            # group_all_df = self.init_df[self.init_size:].groupby(by='phrase').agg(
-            #     subtopic=('subtopic', 'unique'),
-            #     true=('true', 'unique')).reset_index()
             self.classifier.add(batch[TEXT_IN_LB].values, batch[TOPIC_IN_LB].values)
             self.lb.save_point_tasks()  # POINT
-            # self.init_size = self.init_df.shape[0]  # Обновляем размер набора данных
             print(all_metrics.iloc[-1])
 
         self.__save_metrics(all_metrics, 0.97, batch_size, 'all_metrics')
@@ -170,7 +145,6 @@ PATH_DF = 'run_data/data.csv'
 PATH_DOMAIN = 'run_data/Domain.csv'
 
 if __name__ == '__main__':
-    # preproc = CreateModelData(PATH_DOMAIN)
     system = ModelTraining(Classifier('models/adaptation/decorative_0_96_1_perfumery-adaptive.bin'),
                            LabelStudio(LABEL_STUDIO_URL, API_KEY))
     t1 = time()
