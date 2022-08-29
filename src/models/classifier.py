@@ -125,6 +125,11 @@ class Classifier:
         :param average: Метод подсчёта метрик.
         :return: Результаты метрик в формате pd.DataFrame.
         """
+        # Удаление неразмеченных данных, так как по ним невозможно снять метрики.
+        nan_index = [i for i, c in enumerate(y_true) if type(c) == float]
+        y_true = np.delete(y_true, nan_index, axis=0)
+        y_pred = np.delete(y_pred, nan_index, axis=0)
+
         classes = set()  # Отбор уникальных классов
         for i in range(y_true.shape[0]):
             classes = classes | set(y_true[i]) | set(y_pred[i])
