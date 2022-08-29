@@ -73,6 +73,11 @@ class Classifier:
         :param y: Набор категорий.
         :return: self.
         """
+        # Удаление неразмеченных данных, так как пустые значения не нужны в индексе.
+        nan_index = [i for i, c in enumerate(y) if type(c) == float]
+        x = np.delete(x, nan_index, axis=0)
+        y = np.delete(y, nan_index, axis=0)
+
         if not self.y.shape[0]:
             self.index = faiss.IndexFlat(self.embeddings(x[0]).shape[1])
 

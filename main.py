@@ -11,7 +11,7 @@ from kfold import Stratified
 
 class ModelTraining:
     run_model, history = False, False
-    marked = pd.DataFrame()
+    # marked = pd.DataFrame()
 
     def __init__(self, classifier: Classifier, label: LabelStudio,
                  train_path: str = 'run_data/data.csv', domain_path: str = 'run_data/Domain.csv'):
@@ -19,7 +19,7 @@ class ModelTraining:
         self.lb = label
         self.train = self.__read_train(train_path)
         self.init_df = self.__init_domain(domain_path)
-        self.init_size = self.init_df.shape[0]
+        # self.init_size = self.init_df.shape[0]
 
     def __read_train(self, train_file: str):
         """
@@ -46,14 +46,14 @@ class ModelTraining:
         print(f"Сохранение плоского классификатора {self.path('data/processed/init_df.csv')} ")
         return d
 
-    # There may be data preprocessing or it may be placed in a separate class
-    def __update_predict_df(self, markup: pd.DataFrame):
-        '''
-        Созраняем размеченные данные в таблицу. Обновляем тренировчный набор.
-        :param markup: Разметка полученная разметчиками или моделью.
-        '''
-        self.init_df = pd.concat([self.init_df, markup], ignore_index=True)
-        self.init_df.to_csv(self.path('data/processed/init_df.csv'))
+    # # There may be data preprocessing or it may be placed in a separate class
+    # def __update_predict_df(self, markup: pd.DataFrame):
+    #     '''
+    #     Созраняем размеченные данные в таблицу. Обновляем тренировчный набор.
+    #     :param markup: Разметка полученная разметчиками или моделью.
+    #     '''
+    #     self.init_df = pd.concat([self.init_df, markup], ignore_index=True)
+    #     self.init_df.to_csv(self.path('data/processed/init_df.csv'))
 
     def __save_metrics(self, df, limit, batch_size, name):
         df.to_csv(self.path(f'models/predicts/{limit}_{batch_size}_{name}.csv'), index=False)
@@ -114,6 +114,7 @@ class ModelTraining:
 
             print('Получаем данные...')
             batch = self.lb.get_annotations()
+            # self.marked = pd.concat([self.marked, batch], ignore_index=True)
             print('Данные получены...')
 
             # Оцениваем качество модели по батчам
@@ -130,13 +131,13 @@ class ModelTraining:
                 print('Запуск режима разметки моделью')
                 print('Процесс калибровки порога...')
 
-            # Добавляем новые индексы в модель
-            group_all_df = self.init_df[self.init_size:].groupby(by='phrase').agg(
-                subtopic=('subtopic', 'unique'),
-                true=('true', 'unique')).reset_index()
-            self.classifier.add(group_all_df['phrase'], group_all_df['subtopic'])
+            # # Добавляем новые индексы в модель
+            # group_all_df = self.init_df[self.init_size:].groupby(by='phrase').agg(
+            #     subtopic=('subtopic', 'unique'),
+            #     true=('true', 'unique')).reset_index()
+            self.classifier.add(batch[TEXT_IN_LB].values, batch[TOPIC_IN_LB].values)
             self.lb.save_point_tasks()  # POINT
-            self.init_size = self.init_df.shape[0]  # Обновляем размер набора данных
+            # self.init_size = self.init_df.shape[0]  # Обновляем размер набора данных
             print(all_metrics.iloc[-1])
 
         self.__save_metrics(all_metrics, 0.97, batch_size, 'all_metrics')
