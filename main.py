@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+import numpy as np
 from time import time
 from pathlib import Path
 from src.data import CreateModelData
@@ -11,11 +12,12 @@ from kfold import Stratified
 class ModelTraining:
     run_model, history = False, False
 
-    def __init__(self, classifier: Classifier, label: LabelStudio):
+    def __init__(self, classifier: Classifier, label: LabelStudio,
+                 train_path: str = 'run_data/data.csv', domain_path: str = 'run_data/Domain.csv'):
         self.classifier = classifier
         self.lb = label
-        self.train = self.__read_train('run_data/data.csv')
-        self.init_df = pd.read_csv('data/processed/init_df.csv')
+        self.train = self.__read_train(train_path)
+        self.init_df = self.__init_domain(domain_path)
         self.init_size = self.init_df.shape[0]
 
     def __read_train(self, train_file: str):
@@ -24,9 +26,24 @@ class ModelTraining:
         :param train_file: Путь до файла.
         :return: Агрегированный набор данных.
         """
-        return pd.read_csv(self.path(train_file)
-                           ).sort_values('frequency', ascending=False).reset_index(drop=True)
+        return pd.read_csv(self.path(train_file)).sort_values('frequency', ascending=False).dropna(
+            subset=['item']).reset_index(drop=True)
         # return train.groupby(by='phrase').agg(subtopic=('subtopic', 'unique'), true=('true', 'unique')).reset_index()
+
+    def __init_domain(self, path: str):
+        """
+        Создание начального набора данных для решения проблемы холодного старта.
+        true - Категория поставленная разметчиком.
+        subtopic - Каетогрия прдесказанная моделью.
+        :param path: Категории доменной области.
+        :return: Уникальные классы второго и третьего уровня, которые содежатся в доменной области.
+        """
+        d = pd.read_csv(self.path(path))
+        c = list({i.strip().lower() for i in np.append(d['Тема'], d['Подтема']) if type(i) == str})
+        d = pd.DataFrame({'phrase': c, 'subtopic': c})
+        d.to_csv(self.path('data/processed/init_df.csv'), index=False)
+        print(f"Сохранение плоского классификатора {self.path('data/processed/init_df.csv')} ")
+        return d
 
     # There may be data preprocessing or it may be placed in a separate class
     def __update_predict_df(self, markup: pd.DataFrame):
