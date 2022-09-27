@@ -110,3 +110,11 @@ if __name__ == '__main__':
     # system.run(limit=0.98)
     system.binary_search(0.8)
     print(time() - t1)
+
+    # Оцениваем качество модели, если количество предсказанных объектов больше 10
+    if limit.shape[0] > 10:
+        metrics = self.classifier.metrics(pred['true'].values, pred['subtopic'].values)
+        metrics[['model_from_val', 'model_from_all', 'people_from_val']] = \
+            limit.shape[0], model, people
+        model_metrics = pd.concat([model_metrics, metrics])
+        model_metrics.iloc[-1:, :3] = model_metrics.iloc[-window:, :3].agg('mean')
